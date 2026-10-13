@@ -1,0 +1,27 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+.DS_Store
+
+# Bundled third-party runtime assets are fetched and hash-checked by scripts/prepare-assets.mjs
+src/renderer/public/mediapipe/
+
+# Never commit footage, recordings, exports or camera media
+footage-cache/
+recordings/
+exports/
+*.mp4
+*.mov
+*.webm
+*.avi
+*.mkv
+*.y4m
+*.mjpeg
+*.pose.json
+*.pose.jsonl
+!packages/sim/fixtures/**/*.pose.json
+
+test-results/
+playwright-report/

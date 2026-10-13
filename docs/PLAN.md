@@ -1,6 +1,6 @@
 # Ready Up: Build Plan
 
-Version 2 · 13 October 2026 · **Decisions approved. Milestone 1 acceptance criteria awaiting sign-off. No application code written yet.**
+Version 2.1 · 13 October 2026 · **Milestone 1 implemented and awaiting your real-camera test.** Changes made during M1 are listed in `docs/milestones/M1.md`.
 Visual direction (approved): `docs/design/visual-direction.html`.
 
 ---
@@ -177,7 +177,7 @@ All thresholds below are **provisional starting values**, shown and adjustable i
 | **Squat** | Knee angle | Standing start, torso upright-ish, feet visible | ≥ 160° | ≤ 100° or hip at knee height | M5 |
 | **Sit-up (full)** | Torso angle to floor | Lying start, knees bent | ≥ 70° | ≤ 20° | M5, **Beta** |
 
-A rep counts only on a complete **top → bottom → top** cycle within 0.5–10 s, with the position gate and visibility (≥ 0.6 on required joints, brief < 300 ms dropouts tolerated) holding throughout. Losing tracking mid-rep **voids** that rep and returns to WAITING, which prevents surprise counts. A movement that fits a different exercise is rejected with a reason (e.g. "That looked like a knee push-up. Switch exercise if that's what you're doing."), never counted as the other exercise.
+A rep counts only on a complete **top → bottom → top** cycle, with at least 0.3 s spent below the top threshold and at most 10 s per rep (revised in M1), with the position gate and visibility (≥ 0.6 on required joints, brief < 300 ms dropouts tolerated) holding throughout. Losing tracking mid-rep **voids** that rep and returns to WAITING, which prevents surprise counts. A movement that fits a different exercise is rejected with a reason (e.g. "That looked like a knee push-up. Switch exercise if that's what you're doing."), never counted as the other exercise.
 
 ### 4.5 Camera setup checks
 
@@ -334,7 +334,7 @@ M1 delivers the project foundation and a **proof of concept**, not the designed 
 
 ### D. Push-up counter (provisional)
 
-- D1. Implemented as a pure TypeScript module: camera-facing side selection with hysteresis, One-Euro smoothing, position gate (torso near horizontal, body line, wrist below shoulder), visibility threshold, top → bottom → top cycle, 0.5–10 s rep duration, mid-rep tracking loss voids the rep.
+- D1. Implemented as a pure TypeScript module: camera-facing side selection with hysteresis, One-Euro smoothing, position gate (torso near horizontal, body line, wrist below shoulder), visibility threshold, top → bottom → top cycle, at least 0.3 s below the top threshold and at most 10 s per rep (revised from 0.5 s in M1), mid-rep tracking loss or a camera interruption voids the rep.
 - D2. Provisional defaults: top ≥ 150°, bottom ≤ 100°, body line ≥ 150°, visibility ≥ 0.6. All live-adjustable in Diagnostics, with a reset to defaults.
 - D3. Every attempt emits a `counted`, `rejected` or `voided` event with a reason code, a plain-language message, and metrics (min/max angle, duration, side, mean visibility).
 - D4. Synthetic fixture suite passes, with each case asserting the exact count *and* the expected reason:
@@ -368,7 +368,7 @@ M1 delivers the project foundation and a **proof of concept**, not the designed 
 - F1. Unsigned NSIS installers for **Windows x64 and arm64**, built in my environment and sent to you here.
 - F2. Install, launch and uninstall work without admin rights (per-user install). App data lives in `%APPDATA%\Ready Up`.
 - F3. Instructions for the unsigned-app warning: SmartScreen → "More info" → "Run anyway".
-- F4. Known M1 limitation: without Windows tooling in my environment, the `.exe` may show the default Electron icon and file details. The branded icon arrives by M7.
+- F4. ~~Known M1 limitation: default Electron icon and file details.~~ Resolved during M1: the branded icon and file details are applied. Installers remain unsigned.
 
 ### G. Performance (measured on your PC by the test script; reported, not hidden)
 

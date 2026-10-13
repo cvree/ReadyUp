@@ -1,0 +1,24 @@
+/* "The Ready Check" design tokens (approved). Dark only for v1. */
+:root {
+  --ink: #0c0f15;
+  --ink-2: #121722;
+  --slate: #1a2130;
+  --line: #2a3345;
+  --mist: #97a1b3;
+  --paper: #eeeae2;
+  --moon: #a9b8f5;
+  --ember: #f39a6b;
+  --gold: #efcb72;
+  --gold-ink: #1d1607;
+  --ok: #8fd3a8;
+  --warn: #f0b566;
+  --bad: #f08a7e;
+
+  --display: 'Anybody Variable', 'Arial Narrow', sans-serif;
+  --body: 'Instrument Sans Variable', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  --radius: 8px;
+  --focus: 0 0 0 3px var(--ink), 0 0 0 6px var(--gold);
+  color-scheme: dark;
+}

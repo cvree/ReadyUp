@@ -1,0 +1,39 @@
+# Development builds: unsigned. See docs/PLAN.md §11 for what a public release needs.
+appId: app.readyup.desktop
+productName: Ready Up
+copyright: Ready Up
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - "!**/*.map"
+asar: true
+electronLanguages:
+  - en-US
+extraResources:
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+# No auto-update in v1, so no update metadata.
+publish: null
+win:
+  target: nsis
+  icon: build/icon.png
+  # No certificate yet: the .exe and installer are unsigned (icon and file details are still applied).
+  artifactName: Ready-Up-Setup-${version}-${arch}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  deleteAppDataOnUninstall: false
+  shortcutName: Ready Up
+  uninstallDisplayName: Ready Up
+  differentialPackage: false
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+  grantFileProtocolExtraPrivileges: false

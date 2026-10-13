@@ -1,0 +1,53 @@
+{
+  "name": "ready-up",
+  "productName": "Ready Up",
+  "version": "0.1.0-m1",
+  "private": true,
+  "description": "Study, move, then play.",
+  "author": "Ready Up",
+  "license": "UNLICENSED",
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=22.12 <23"
+  },
+  "scripts": {
+    "assets": "node scripts/prepare-assets.mjs",
+    "predev": "npm run assets",
+    "dev": "electron-vite dev",
+    "prebuild": "npm run assets",
+    "build": "electron-vite build",
+    "typecheck": "tsc -p tsconfig.packages.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
+    "lint": "eslint .",
+    "check:repo": "node scripts/check-repo.mjs",
+    "test": "npm run check:repo && vitest run",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:linux": "npm run build && xvfb-run -a -s \"-screen 0 1600x1000x24\" playwright test",
+    "dist:win": "npm run build && electron-builder --win nsis --x64 && electron-builder --win nsis --arm64"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@fontsource-variable/anybody": "5.3.0",
+    "@fontsource-variable/instrument-sans": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@mediapipe/tasks-vision": "1.1.0",
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.5.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "7.3.7",
+    "vitest": "4.1.11",
+    "zod": "4.6.7",
+    "zustand": "5.0.15"
+  }
+}

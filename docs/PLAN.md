@@ -1,19 +1,40 @@
 # Ready Up: Build Plan
 
-Status: **Draft for review. No application code has been written.**
-Companion visual direction: `docs/design/visual-direction.html` (also published as a private page).
+Version 2 · 13 October 2026 · **Decisions approved. Milestone 1 acceptance criteria awaiting sign-off. No application code written yet.**
+Visual direction (approved): `docs/design/visual-direction.html`.
 
 ---
 
-## 1. The product in one paragraph
+## 0. Approved decisions
 
-Ready Up is a desktop commitment device for people who want to earn their game time. A session is a **ready check** with three slots: **Focus** (a measured study timer with a task you name), **Move** (camera-counted reps, 10 push-ups by default), and **Play** (a Launch button for your game that unlocks when the first two are done). It runs entirely on your computer. Video never leaves the device and is never written to disk.
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Platform | **Windows first.** The app detects and reports the exact Windows version, build and architecture at runtime (see §6.5). Start with the desktop webcam. Support any phone camera Windows presents as a webcam. iPhone support is not a v0.1 blocker. |
+| 2 | Stack | Electron + React + TypeScript + local MediaPipe. ~100 MB installer is acceptable. Startup and camera performance must stay responsive (targets in §6.4). |
+| 3 | Push-up standard | Elbow ≤ 100° is a **provisional counting threshold**, not a definition of good form. A rep needs a visible top → bottom → top cycle, a plausible push-up body position, and adequate landmark visibility. Thresholds are inspectable and adjustable in Diagnostics and get revised after real-camera tests. **Knee push-ups** are a separate, clearly named exercise, never treated as failed standard push-ups. |
+| 4 | Override & corrections | An override or manual alternative **may unlock Launch**, recorded honestly as an override. Unobserved movement is **never** added to the camera-counted total. Manual ±1 corrections are stored and shown separately in session details. |
+| 5 | Sit-ups | Full sit-ups as their own exercise, labeled **Beta** until real-camera testing supports it. Crunches may come later as a separate exercise; the two are never counted as the same movement. |
+| 6 | Games | **Overwatch 2** and **Marvel Rivals** first. You pick the installed shortcut or launcher during setup; the app assumes nothing about install locations. A launch counts as one *Ready Up game session*, not a match. Matches can be logged manually. |
+| 7 | Test data | You run real-camera tests from a short script; no video recording required. Development uses synthetic movement fixtures and footage with clear reuse rights. **Your video and pose data never go in the repository.** |
+| 8 | Visual | "The Ready Check" direction and mockups approved, including Diagnostics and error states. Dark theme only for v1. |
+| 9 | Sound | Completion sound off by default, optional setting to enable it. |
+| 10 | Signing | No certificate. Unsigned installer for development; signing never blocks the prototype. Public-release requirements are listed in §11. |
+| 11 | Review | A commit at each completed milestone on the dedicated project branch. No pull requests, no merges, no releases. You review each milestone before the next starts. |
+
+**Branch note.** The project branch is `claude/friendly-galileo-0oqqd3`. My build environment is a temporary cloud container that is deleted when idle, so a commit that exists only inside it would be lost. I therefore **push each milestone commit to that branch** so you can review it. That is a branch push only: no pull request, merge, tag, or release. If you'd rather I keep commits unpushed, tell me and I'll stop pushing, with the risk that work can be lost.
+
+---
+
+## 1. The product
+
+Ready Up is a Windows desktop commitment device for earning game time. A session is a **ready check** with three slots: **Focus** (a measured study timer with a task you name), **Move** (camera-counted reps, 10 push-ups by default), and **Play** (a Launch button for your game that unlocks when Focus and Move are done). Everything runs locally. Video never leaves the computer and is never written to disk.
 
 What it is honest about:
 
-- **The timer is measured; the study is self-reported.** Ready Up records how long the focus timer ran (excluding pauses and sleep). Whether you finished your task is something you confirm. The app never claims to prove you studied.
-- **The game unlock is Ready Up's own button.** It does not block your game, your launcher, or your desktop shortcut. The copy says this plainly in setup.
-- **Rep counts are camera estimates.** You can correct them (+1 / -1) and you can override the camera entirely (injury, accessibility, camera failure). History labels corrected and overridden sessions as such, without judgment.
+- **The timer is measured; the study is self-reported.** Ready Up records how long the focus timer ran (excluding pauses and sleep). Whether you finished your task is something you confirm.
+- **The game unlock is Ready Up's own button.** It doesn't block your game, launcher or desktop shortcut. Setup says so plainly.
+- **Rep counts are camera estimates.** Camera-counted reps, your manual corrections, and self-reported overrides are stored and shown as three separate things.
+- **A launch is a game session, not a match.** Ready Up records that it opened your game. It can't see matches; you can log them yourself.
 
 ---
 
@@ -21,13 +42,13 @@ What it is honest about:
 
 ### 2.1 Principles
 
-1. **The next action is always the biggest thing on screen.** Every screen has one primary action, reachable with Enter.
-2. **Encourage, never scold.** Feedback says what to change ("Go a little lower") instead of what went wrong ("Bad rep").
-3. **Explain every count.** A rep that doesn't count always gets a reason, in plain language on the Move screen and in detail in Diagnostics.
-4. **Calm during focus, energy during move, one big moment at the end.** Motion and color intensity rise through the session.
-5. **Local and private by default.** No accounts, no network calls, no analytics.
+1. The next action is always the biggest thing on screen, reachable with Enter.
+2. Encourage, never scold. Feedback says what to change next.
+3. Every rep that doesn't count gets a reason.
+4. Calm during focus, energy during move, one brief moment at the end.
+5. Local and private: no accounts, no network calls, no analytics.
 
-### 2.2 The core loop
+### 2.2 Core loop
 
 ```
  Lobby ──Enter──▶ Focus (25:00) ──timer ends──▶ "Did you finish?" ──▶ Move
@@ -37,294 +58,222 @@ What it is honest about:
    └──── "Not now" ◀── Ready! (Launch unlocked) ◀──10/10── Rep counting
 ```
 
-### 2.3 Screen-by-screen flow
+### 2.3 Screens
 
-**First run (target: under 60 seconds, every step skippable)**
+**First run (under a minute, every step skippable)**
 
 | Step | Screen | What it does | Primary action |
 |---|---|---|---|
-| 1 | Welcome | Name and one-line promise: "Study, move, then play." | Get started |
-| 2 | Your routine | Prefilled: 25 min focus, 10 push-ups. Steppers for minutes and reps, exercise picker. | Looks good |
-| 3 | Your game | Pick an app/executable, or paste a launcher link (e.g. `steam://rungameid/730`). Includes the honesty note. Test-launch button. | Save game / Skip for now |
-| 4 | Camera check | Permission request with a reason shown *before* the OS prompt. Short placement preview. Can defer to first Move. | Check my camera / Later |
-| 5 | Lobby | Lands on the main screen with the cursor in "What are you studying?" | Start focus |
+| 1 | Welcome | "Study, move, then play." | Get started |
+| 2 | Your routine | Prefilled 25 min + 10 push-ups. Steppers; exercise picker. | Looks good |
+| 3 | Your games | "Choose the shortcut you use to start Overwatch 2 / Marvel Rivals." File picker accepting `.lnk`, `.url`, `.exe`, or paste a launcher link. Shows exactly what was chosen. **Test launch** button. Honesty note about the unlock. | Save / Skip for now |
+| 4 | Camera check | Why we ask, then Windows' prompt if needed. Short placement preview. Can defer. | Check my camera / Later |
+| 5 | Lobby | Cursor in "What are you studying?" | Start focus |
 
-**Main screens**
+**Main screens** (unchanged from v1; mockups in the visual direction page)
 
-| Screen | Content | Primary action | Keyboard |
+| Screen | Content | Primary action | Keys |
 |---|---|---|---|
-| **Lobby** (home) | The ready-check bar (Focus / Move / Play slots), task field, game name, one quiet line of progress ("4 ready checks this week"). | Start focus | Enter starts, `E` edits routine, `H` history |
-| **Focus** | Very large timer, task name, slim progress line, Pause, End early. Calm palette; motion nearly off. OS notification when it ends. | Pause / Resume | Space pauses, Esc → "End early?" |
-| **Focus complete** | "25:00 focused." Then "Did you finish *Chapter 4 problems*?" Yes / Partly / Not this time. All answers continue. | Continue to Move | 1/2/3 to answer |
-| **Camera setup** | Live preview with ghost silhouette for the chosen exercise; four checks: In frame, Distance, Angle, Lighting. Each turns from hint → check. Camera switcher. Phone-camera help link. | I'm set | Tab cycles cameras |
-| **Move** | Camera preview with a quiet skeleton overlay, huge rep count "4 / 10", depth gauge, one feedback line, -1 / +1 correction, "Can't use the camera?" override. | (none needed; reps drive it) | `-` / `+` correct, `O` override |
-| **Ready** | The completion moment. Ready-check bar locks in, "READY" headline, session summary, Launch *Game*. | Launch *Game* | Enter launches |
-| **History** | A week strip (one mark per completed ready check), this week's totals (focus time, reps), a short list of recent sessions with tags like "self-reported reps". No charts beyond that. | Back to lobby | |
-| **Settings** | Routine, exercises & standards, camera, games, accessibility (reduced motion, sounds, text size), data (export, delete everything). | | |
-| **Diagnostics** | See section 5. Reached from Settings or Ctrl+Shift+D. | | |
+| Lobby | Ready-check bar, task field, chosen game, one quiet progress line | Start focus | Enter, `E` edit routine, `H` history |
+| Focus | Large timer, task, slim progress line, Pause, End early | Pause/Resume | Space, Esc |
+| Focus complete | "Did you finish *task*?" Yes / Partly / Not this time; all continue | Continue | 1/2/3 |
+| Camera setup | Live preview, ghost silhouette, checks: In frame, Distance, Angle, Lighting; camera switcher | I'm set | Tab cycles cameras |
+| Move | Preview, quiet skeleton, count "4 / 10", depth gauge, feedback line, −1/+1, "Can't use the camera?" | (reps drive it) | `-` `+` `O` |
+| Ready | Lock-in moment, honest summary, Launch *game* | Launch | Enter |
+| History | Week strip, weekly totals, recent sessions with tags | Back | |
+| Session details | Focus time, task answer, camera-counted reps, corrections (each with time), override reason, game launched, matches logged | Log a match | |
+| Settings | Routine, exercises, camera, games, accessibility, sound, data | | |
+| Diagnostics | §5 | | Ctrl+Shift+D |
 
-**Designed states (each gets real copy and art, not a generic error)**
+**Designed states:** empty, model loading, permission denied (Windows: Settings → Privacy & security → Camera, with "Let desktop apps access your camera"), no camera, camera disconnected mid-set, person partly visible (names the body part), head not visible, too far (> ~4 m), low light/backlit, completed.
 
-| State | Treatment |
-|---|---|
-| Empty (no history) | Lobby shows "Your first ready check is waiting." History shows an empty week strip with today highlighted. |
-| Model loading | "Warming up the tracker…" with a determinate bar (model is local, loads in ~1–3 s). |
-| Permission denied | Explains why, with OS-specific steps and a button that opens the right settings pane (macOS Privacy & Security → Camera; Windows Settings → Privacy → Camera). Offers the override. |
-| No camera found | Lists what to try, including the phone-camera guide. |
-| Camera disconnected mid-set | Counting pauses, count is kept, "Camera disconnected. Reconnect it or pick another." Resumes automatically when the device returns. |
-| Person not visible / partially visible | Names the body part: "I can't see your feet. Move the camera back about a step." |
-| Low light / backlit | "It's a bit dark for tracking. Turn on a light in front of you." |
-| Completed | The Ready screen; returning to the Lobby later shows "Ready. Launch *Game*" until a new session starts. |
+### 2.4 Rep records, corrections and overrides
 
-### 2.4 Override and correction
+Each Move phase stores separate fields, never merged:
 
-- **Correction:** -1 / +1 on the Move screen and in Diagnostics. Each correction is logged with a timestamp. History shows "10 reps (1 corrected)".
-- **Override:** "Can't use the camera?" opens a sheet with reasons: *Injury*, *Accessibility*, *Camera isn't working*, *Other*. Then: swap to a different exercise, enter reps yourself, or skip Move for today. Launch still unlocks (proposed default, see decisions). History labels it "Move: self-reported (injury)".
-
-### 2.5 Phone as a camera (explained in-app, in Settings → Camera → "Use your phone")
-
-Ready Up sees any camera the operating system exposes as a webcam. The guide offers the route that matches your devices:
-
-| Your setup | Route | Install needed |
+| Field | Source | Shown as |
 |---|---|---|
-| iPhone + Mac | **Continuity Camera** (macOS 13+, iOS 16+). Same Apple ID, Wi-Fi and Bluetooth on. The iPhone appears in the camera list. | None |
-| Android + Windows 11 | **Phone Link → "Use as a connected camera"** (Android 9+). | Phone Link app |
-| Android 14+ phone, any computer | **USB webcam mode.** Plug in, choose "Webcam" in the USB notification. | None |
-| Anything else | Third-party webcam apps (e.g. Camo, DroidCam, Iriun). We link to them; they have their own terms and privacy policies. | Their app on both devices |
+| `cameraCounted` | Rep state machine only | "8 push-ups, camera-counted" |
+| `corrections[]` | −1/+1 presses, each with timestamp and the camera count at that moment | "+2 manual corrections" |
+| `override` | Reason (injury / accessibility / camera not working / other), choice (other exercise, self-reported reps, skipped), self-reported count | "Move: override (camera not working), 10 reps self-reported" |
 
-Placement tips shown with a diagram: landscape orientation, phone on a stand or propped on the floor, 2–3 m away, side-on for push-ups and sit-ups, hip height.
+- Move is complete when `cameraCounted + net corrections ≥ target`, or an override is confirmed.
+- Lifetime and weekly "camera-counted push-ups" totals include only `cameraCounted`.
+- Overrides unlock Launch and are labeled in History and Session details without judgment.
 
-**Direct phone pairing** (scan a QR code, stream from the phone's browser) is deferred. It needs a local HTTPS server with a certificate the phone trusts (browsers only allow camera access in secure contexts), WebRTC signaling, and LAN discovery. That is a substantial feature with its own failure modes, and the routes above already cover most users.
+### 2.5 Games
+
+- **Setup:** you choose the shortcut you already use for each game: a desktop or Start-menu shortcut (`.lnk`), an internet shortcut (`.url`, which is what Steam creates), a launcher executable, or a launcher link you paste (e.g. a `steam://` or `battlenet://` link). Ready Up stores exactly that target and shows it back to you. It never scans or guesses install locations.
+- **Launch:** Ready Up asks Windows to open that shortcut (the same as double-clicking it). It does not interact with the game process, so it never touches anti-cheat.
+- **Recording:** each launch creates a *game session* record linked to the ready check. A "Log a match" button in Session details lets you add matches manually.
+- **Allowlist:** pasted links are limited to known launcher schemes (Steam, Battle.net, Epic), editable in Settings.
+
+### 2.6 Phone camera (not a v0.1 blocker)
+
+Ready Up uses any camera Windows lists as a webcam. iPhone + Windows has no built-in route (Continuity Camera is Mac-only), so it needs a third-party webcam app on both devices (e.g. Camo, iVCam, DroidCam). The in-app guide will link to these without endorsing them and give placement tips. Android 14+ phones can act as a USB webcam with no app, and Windows 11 Phone Link supports Android phones as connected cameras. Direct phone pairing stays deferred.
 
 ---
 
-## 3. Visual direction: "The Ready Check"
+## 3. Visual direction: "The Ready Check" (approved)
 
-The identity is built on one moment every player knows: the lobby ready check, where each slot lights up and the match is about to start. Ready Up turns that into the core UI.
+- **Signature:** the ready-check bar, three slots (Focus, Move, Play).
+- **Palette:** ink, slate, paper text; one tint per phase: moonlight → ember → lamp gold.
+- **Type:** Anybody (display, variable width/weight), Instrument Sans (UI), IBM Plex Mono (Diagnostics). OFL, bundled.
 
-- **Signature element:** the **ready-check bar**, three slanted slots (Focus, Move, Play). Slots fill as you progress; Play locks in gold on completion. It appears large on the Lobby and Ready screens and as a slim header elsewhere, so you always know where you are.
-- **Palette ("lobby at dusk"):** blue-black ink base, slate surfaces, warm paper-white text. Each phase gets one restrained tint: **moonlight** (focus), **ember** (move), **lamp gold** (ready, the brand accent). No neon, no glow-everything; light is used like stage lighting, mostly on the one thing that matters.
-- **Typography:** *Anybody* (variable width + weight) for display: wide and heavy for the timer and rep numerals, condensed for labels. Its width axis drives the completion moment (READY expands from condensed to wide as it locks in). *Instrument Sans* for body and UI text. *IBM Plex Mono* for Diagnostics data. All fonts are OFL-licensed and bundled locally.
-- **Motion:** quiet by default. Three orchestrated moments only: a slot filling, a rep tick (number rolls, gauge pulses), and the lock-in (slots snap, a single light sweep across the Launch button, READY widens). With reduced motion enabled (OS setting or in-app toggle), these become short cross-fades and the information stays identical.
-- **Sound:** optional, off by default (decision below). A soft tick per rep and one chord on lock-in.
-- **Contrast:** body text ≥ 7:1 on the base, secondary text ≥ 4.5:1, focus rings 3 px gold with offset, never color-only state (every slot also has an icon and a label).
+**Level-content rule.** Only the slot *edges* are slanted (a clip-path on the slot background). Text, numerals, icons, buttons, form fields and every camera-guidance overlay stay level and unskewed. Focus rings follow the element's real rectangle, not the slant.
 
-The mockups in `docs/design/visual-direction.html` show Lobby, Focus, Camera setup, Move, Ready, Diagnostics, and the error/empty states.
+**Completion moment: brief.**
+
+| | Full motion | Reduced motion |
+|---|---|---|
+| Duration | ≤ 1.1 s total | ≤ 0.4 s total |
+| Slots | Snap into place, 60 ms stagger | Already filled; fade in together |
+| READY | Widens from condensed to full width (font width axis) | Appears at full width with a soft fade |
+| Launch button | One light sweep crosses it once | Rendered already "lit": a still gold highlight band, no movement |
+| Sound | Optional chord (off by default) | Same, if enabled |
+| Input | Enter works immediately; animation never blocks the button | Same |
+
+Reduced motion follows Windows' "Animation effects" setting and an in-app toggle. Both versions show identical information.
 
 ---
 
 ## 4. Rep counting
 
-### 4.1 Evaluation of the reference (parhamsoltani/pushup_counter)
+### 4.1 Reference evaluation (unchanged)
 
-I read the repository's actual code (`pushup_counter.py`, `utils.py`, last commit Sep 2025).
+`parhamsoltani/pushup_counter`: MIT, © 2025 parhamsoltani. Python on MediaPipe's legacy API. It counts at the bottom (so half reps count), averages a visible arm with a hidden one, uses only the left side for alignment, has no plank check (standing arm curls count), and has no smoothing, timing limits or explanations. We reimplement in TypeScript without copying code and credit the project in `THIRD_PARTY_NOTICES.md`. Its sample video has no stated source and is not used or redistributed.
 
-**License.** MIT, "Copyright (c) 2025 parhamsoltani". Reuse is permitted if the notice is kept. The repo also contains `push_up.mp4` and `pu_counter.png` with no stated source. I don't want to assume the video's footage is the author's to license, so we will **not** redistribute it or commit it to this repo.
+### 4.2 Pose model facts that shape the design
 
-**What it actually does.**
-- Python, OpenCV, MediaPipe's legacy `mp.solutions.pose` API (superseded by the Tasks API we would use).
-- Computes left and right elbow angles (shoulder–elbow–wrist) in 2D pixel space and **averages them**.
-- "Form" check: left shoulder–hip–knee angle > 160°; if it fails, counting is skipped for that frame.
-- Counting: angle > 160° sets stage "up"; angle < 90° while "up" sets "down" and **increments the count at the bottom**.
+From Google's model card for the BlazePose GHUM 3D model behind Pose Landmarker (**Apache-2.0**, verified):
 
-**What's worth keeping.** The two-threshold idea (it acts as hysteresis), the standard three-point angle formula, and the angle-to-percentage progress bar, which becomes our depth gauge.
+- **Tracks one person.** If two people are in view, it tracks only one. Setup says so.
+- **Out of scope when the head isn't visible** or the person is **farther than ~4 m (14 ft)**. These become explicit setup checks.
+- **Accuracy degrades in low light, noise and motion.** Hence the lighting check and confidence gating.
 
-**Problems found, each of which our design addresses:**
-
-| # | Problem in reference | Consequence | Our approach |
-|---|---|---|---|
-| 1 | Counts when reaching the bottom | A half rep (go down, never push back up) counts | Count only on return to the top after a valid bottom |
-| 2 | No visibility/presence checks | In a side view the far arm is hidden; MediaPipe guesses its position. Averaging a real and a guessed angle corrupts the signal | Choose the camera-facing side by landmark visibility, with hysteresis; require visibility ≥ threshold |
-| 3 | Alignment always uses the left side | Wrong when the right side faces the camera | Use the chosen side |
-| 4 | No "in plank" check | Standing upright passes shoulder–hip–knee > 160°, so **standing arm curls count as push-ups** | Require torso near horizontal and wrists below shoulders |
-| 5 | No smoothing or timing limits | Jitter and landmark jumps can create or miss transitions | One-Euro smoothing, minimum rep duration, minimum interval |
-| 6 | Stage survives tracking loss | Walking out of frame and back can produce surprise counts | Tracking loss mid-rep voids that rep and resets to "waiting for top" |
-| 7 | Form failure silently skips frames | User never learns why a rep didn't count | Every attempt produces a counted/rejected event with a reason |
-| 8 | Bare `except` → "Position not detected" | Hides real errors | Typed results; errors surface in Diagnostics |
-
-**Plan:** reimplement in TypeScript from scratch (different language and API). No code is copied, so the notice isn't strictly required, but we credit the project in `THIRD_PARTY_NOTICES.md`. If any code is ever ported directly, the full MIT notice goes in with it.
-
-### 4.2 Our counting pipeline (all exercises)
+### 4.3 Pipeline (all exercises)
 
 ```
-camera frame ──▶ Pose Landmarker (worker) ──▶ 33 landmarks + visibility + world coords
-     │                                              │
-     │ (never stored)                               ▼
-     │                                  Side selection (hysteresis)
-     │                                  Smoothing (One-Euro filter)
-     │                                  Geometry: joint angles, torso angle, bbox
-     │                                              │
-     │                                              ▼
-     │                                  Gating: "are you in position?"
-     │                                  (exercise-specific; outputs named failures)
-     │                                              │
-     │                                              ▼
-     │                                  Rep state machine
-     │                                  WAITING → TOP → DESCENDING → BOTTOM → ASCENDING → TOP(+1)
-     │                                              │
-     ▼                                              ▼
- Lighting estimate (luma only)          RepEvent { counted | rejected, reason, minAngle,
-                                                   duration, side, confidence }
+camera frame ─▶ Pose Landmarker (worker, local) ─▶ 33 landmarks + visibility + world coords
+   (never stored)        │
+                         ▼
+        side selection (hysteresis) → One-Euro smoothing → angles, torso angle, framing
+                         ▼
+        gating: plausible body position? adequate visibility?  (named failures)
+                         ▼
+        rep state machine: WAITING → TOP → DESCENDING → BOTTOM → ASCENDING → TOP (+1)
+                         ▼
+        RepEvent { counted | rejected | voided, reason, minAngle, maxAngle, duration, side, confidence }
 ```
 
-**Push-up v1 rules (all thresholds adjustable in Diagnostics; defaults to tune on your real recordings):**
+### 4.4 Exercise definitions
 
-- *In position:* torso (shoulder→hip) within ~35° of horizontal; body line shoulder–hip–ankle ≥ ~150°; wrist below shoulder; required joints on the chosen side visible ≥ 0.6.
-- *Top:* elbow angle ≥ 150°. *Bottom:* elbow angle ≤ 100° (proposed "standard"; 90° = "strict"; see decisions).
-- *Valid rep:* TOP → reached BOTTOM → back to TOP, within 0.5–10 s, with gating holding throughout (brief < 300 ms dropouts tolerated).
-- *Rejection reasons* (examples of the user-facing copy):
-  - `not_deep_enough` → "Go a little lower. Your elbows reached 112°; aim for 100°."
-  - `no_lockout` → "Push all the way up to finish the rep."
-  - `not_in_plank` → "Get into a plank to start."
-  - `hips_sagging` / `hips_piking` → "Keep your hips in line with your shoulders."
-  - `tracking_lost` → "I lost sight of your arm mid-rep, so that one didn't count. Try turning more side-on."
-  - `too_fast` → "That was quicker than a real rep. Probably camera jitter, so I skipped it."
+All thresholds below are **provisional starting values**, shown and adjustable in Diagnostics, to be revised after real-camera tests.
 
-**Squats (milestone 5a):** knee angle (hip–knee–ankle), top ≥ 160°, bottom ≤ 100° or hip at/below knee height; standing gating; side or 45° view.
+| Exercise | Primary signal | Position gate | Top | Bottom | Status |
+|---|---|---|---|---|---|
+| **Push-up** | Elbow angle (camera-facing side) | Torso within ~35° of horizontal; shoulder–hip–ankle ≥ ~150°; wrist below shoulder | ≥ 150° | ≤ 100° | M3, validated by your tests |
+| **Knee push-up** | Elbow angle | Torso near horizontal; knees on floor (knee near floor line); shoulder–hip–knee ≥ ~150° | ≥ 150° | ≤ 100° | M5, separate exercise |
+| **Squat** | Knee angle | Standing start, torso upright-ish, feet visible | ≥ 160° | ≤ 100° or hip at knee height | M5 |
+| **Sit-up (full)** | Torso angle to floor | Lying start, knees bent | ≥ 70° | ≤ 20° | M5, **Beta** |
 
-**Sit-ups (milestone 5b):** torso angle relative to the floor, from lying (≤ 20°) to up (≥ 70°), knees bent; side view. Pose models are trained mostly on upright people, so lying-down tracking is the riskiest part of the project. Sit-ups ship labeled **Beta** until they pass real-camera validation.
+A rep counts only on a complete **top → bottom → top** cycle within 0.5–10 s, with the position gate and visibility (≥ 0.6 on required joints, brief < 300 ms dropouts tolerated) holding throughout. Losing tracking mid-rep **voids** that rep and returns to WAITING, which prevents surprise counts. A movement that fits a different exercise is rejected with a reason (e.g. "That looked like a knee push-up. Switch exercise if that's what you're doing."), never counted as the other exercise.
 
-New exercises plug in as an `ExerciseDefinition` (required joints, gating rules, primary signal, thresholds, setup guide, copy) without touching the camera, pose, or UI layers.
+### 4.5 Camera setup checks
 
-### 4.3 Camera setup checks
-
-Computed from landmarks plus a downscaled luminance estimate (pixels are read in memory and discarded):
-
-| Check | Passes when | Hint when failing |
+| Check | Passes when | Hint |
 |---|---|---|
-| In frame | All required joints visible ≥ 0.6 and inside a 3% margin | Names the missing part ("your feet") |
-| Distance | Body spans ~50–85% of the frame in its long axis | "Move the camera back about a step" |
-| Angle | Exercise-specific (side-on for push-ups: shoulders overlap horizontally) | "Turn so your side faces the camera" |
-| Lighting | Mean luma above threshold and tracking confidence steady | "Turn on a light in front of you" / "There's a bright window behind you" |
+| In frame | Head and all required joints visible ≥ 0.6 inside a 3% margin | Names the missing part |
+| Distance | Body spans ~50–85% of the frame; estimated distance < 4 m | "Move the camera back about a step" / "Move closer" |
+| Angle | Exercise-specific (side-on for push-ups) | "Turn so your side faces the camera" |
+| Lighting | Mean luminance above threshold, confidence steady | "Turn on a light in front of you" |
+| One person | Only one person visible (heuristic) | "Only one person can be tracked" |
 
 ---
 
-## 5. Diagnostics (first-class from milestone 1)
+## 5. Diagnostics
 
-A dev-grade Diagnostics view exists from the proof of concept, because it's how we tune counting. Milestone 6 turns it into a polished, documented screen.
+Dev-grade from M1 (it's how we tune counting), polished in M6.
 
-**Layout:** video with skeleton on the left; panels on the right.
-
-- **Camera:** device name, resolution, fps, state (live / disconnected / permission). One-click camera switcher.
-- **Model:** variant (lite / full / heavy), delegate (GPU / CPU), load time, inference ms, effective fps.
-- **Tracking:** all 33 landmarks with visibility bars; chosen side; joints toggle for labels on the video.
-- **Exercise:** current phase, live angle trace over the last 10 s with threshold lines drawn, gating checks with pass/fail per rule.
-- **Rep log:** every attempt, counted or rejected, with reason, min/max angle, duration, confidence. Click an entry to see its angle trace.
-- **Controls:** reset session, -1 / +1, threshold sliders (marked "test values" with a one-click reset to defaults), model variant switch.
-- **Input source:** Live camera · Video file · Pose recording · Simulated. Simulated has sliders for tempo, depth, noise, and dropout, driven by a parametric skeleton generator.
-- **Record:** saves a pose recording (landmarks + timestamps only, no pixels) that becomes a regression test fixture.
-- **Export logs:** JSON bundle with app/OS versions, settings, event log, rep log, and optionally pose recordings. **Never includes video or images.**
+- **System:** Windows edition, version (e.g. 24H2), build, architecture, whether the app runs natively or under emulation, Electron/Chromium versions, GPU.
+- **Camera:** device, resolution, fps, state; one-click switcher.
+- **Model:** variant, delegate (GPU/CPU), load time, inference ms, fps.
+- **Tracking:** 33 landmarks with visibility; chosen side; joint labels on the video.
+- **Exercise:** phase, live angle trace with threshold lines, gate checks pass/fail.
+- **Rep log:** every attempt (counted/rejected/voided) with reason and metrics.
+- **Controls:** reset session, −1/+1 (logged as corrections), threshold sliders (marked "test values", reset to defaults).
+- **Input:** Live camera · Simulated (M1); Video file and Pose recording (M3+).
+- **Record:** pose recording to your local app-data folder only.
+- **Export log:** JSON with system info, settings, events and rep metrics. **Never video or images. Excludes pose landmarks unless you tick "include pose data".**
 
 ---
 
 ## 6. Architecture
 
-### 6.1 Technical choices
+### 6.1 Choices
 
-| Area | Choice | Why / alternatives considered |
-|---|---|---|
-| Shell | **Electron** (current stable, pinned) | Bundles one known Chromium everywhere, so camera, WebGL/WebGPU and WASM behave the same on every OS. Tauri is smaller, but uses each OS's webview (WebKitGTK, WKWebView, WebView2) where getUserMedia, WebGL, and WASM SIMD vary, which is exactly where pose tracking breaks. Cost: ~100 MB installer. |
-| UI | **React + TypeScript (strict)**, built with **electron-vite** | Mature, fast HMR, typed IPC end to end. |
-| Pose | **MediaPipe Pose Landmarker** (`@mediapipe/tasks-vision`, Apache-2.0) in a **Web Worker** | Runs locally, 33 landmarks with visibility and 3D world coordinates, GPU delegate with CPU fallback. Model (`.task`) and WASM files are **bundled**, so it works offline with zero network calls. Variant auto-selected from measured fps (full by default, lite on slow machines). |
-| Exercise logic | **Pure TypeScript package, no DOM or Electron imports** | Fully unit-testable from recorded landmark data. |
-| State | Hand-written typed state machines for session and rep logic; **Zustand** for UI state | Transition tables are easy to read, test, and show in Diagnostics. |
-| Motion | CSS + **Motion** (motion.dev) with reduced-motion handling | Used for the three signature moments only. |
-| Storage | **Versioned JSON files** with atomic writes and schema validation (**zod**), behind a repository interface | Data is small (a few sessions a day). Avoids native-module packaging pain. Can move to SQLite later without touching callers. |
-| Packaging | **electron-builder** | NSIS installer (Windows), DMG (macOS), AppImage/deb (Linux). CI builds on GitHub Actions runners for your OS. |
-| Tests | **Vitest** (unit, trace replay), **Playwright for Electron** (end-to-end, fake camera fed from a video file), **axe-core** (accessibility) | See section 8. |
+| Area | Choice |
+|---|---|
+| Shell | Electron (current stable, pinned) |
+| UI | React + strict TypeScript, electron-vite |
+| Pose | `@mediapipe/tasks-vision` Pose Landmarker in a Web Worker; model + WASM bundled; GPU with CPU fallback |
+| Logic | Pure TypeScript packages (`exercise`, `session`, `sim`), no DOM/Node imports |
+| State | Typed state machines; Zustand for UI |
+| Motion | CSS + Motion (motion.dev), reduced-motion aware |
+| Storage | Versioned JSON, atomic writes, zod validation, behind an interface |
+| Packaging | electron-builder, NSIS installer, unsigned for development |
+| Tests | Vitest, Playwright for Electron, axe-core |
 
-### 6.2 Modules and boundaries
+### 6.2 Modules
 
 ```
-src/
-  main/                 Electron main process (Node)
-    storage/            settings, sessions, history (JSON, atomic, migrations)
-    launcher/           game shortcuts: validate, launch (no shell strings)
-    diagnostics-log/    log files, export bundle
-    platform/           camera permission status, open OS settings, notifications, sleep/resume
-    ipc/                typed, zod-validated handlers
-  preload/              contextBridge API (the only door between UI and Node)
-  renderer/
-    camera/             device list, stream lifecycle, disconnect detection, FrameSource
-                        (live | video file | pose recording | simulated)
-    pose/               PoseEstimator interface; MediaPipe worker implementation; fake estimator
-    ui/                 design tokens, components, screens
-    app/                routing, stores, wiring
-  packages/
-    exercise/           geometry, filters, side selection, gating, rep state machine,
-                        ExerciseDefinition registry (pushup, squat, situp)
-    session/            routine model, focus timer (measured time), session state machine
-    pose-types/         shared landmark types and constants
-    sim/                parametric skeleton generator for tests and Diagnostics
+src/main/       storage/ launcher/ diagnostics-log/ platform/ (windows-info, permissions) ipc/
+src/preload/    typed contextBridge API
+src/renderer/   camera/ pose/ ui/ app/
+packages/       exercise/ session/ sim/ pose-types/
 ```
 
-Boundary rules (enforced by ESLint import rules): `packages/*` import nothing from Electron, Node, or the DOM; `renderer` never imports `main`; everything crossing processes goes through typed IPC.
+Boundaries are enforced by lint rules: `packages/*` import nothing from Electron, Node or the DOM; the renderer never imports `main`; all cross-process traffic goes through typed, validated IPC.
 
 ### 6.3 Security and privacy
 
-- `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, strict Content-Security-Policy with no remote origins.
-- Frames stay in renderer memory, are passed to the worker as transferable bitmaps, and are never written to disk or sent anywhere.
-- The launcher only opens targets the user configured, uses argument arrays (never shell strings), and limits URL launches to an allowlist of game-launcher schemes (`steam://`, `com.epicgames.launcher://`, `battlenet://`, etc.), editable in settings.
-- No network access at runtime. No telemetry. No auto-update in v1.
+`contextIsolation`, `sandbox`, no `nodeIntegration`, strict CSP with no remote origins, no runtime network access, no telemetry, no auto-update. Frames live only in memory. The launcher opens only targets you chose, with argument arrays (never shell strings).
 
-### 6.4 Focus timer as measured time
+### 6.4 Performance targets (measured on your PC, reported honestly)
 
-The timer stores `startedAt`, `accumulatedMs`, `runningSince`, `targetMs`, and a pause log, persisted on every state change and every 5 s. On restart: "You had 12:41 left in your focus session. Resume or discard?" System sleep counts as a pause (proposed default). History records measured focus time separately from the target.
+| Measure | Target |
+|---|---|
+| Window visible after launch | ≤ 2 s |
+| Camera preview after selecting a camera | ≤ 1 s |
+| Pose tracking ready (model loaded) | ≤ 3 s |
+| Tracking rate, full model | ≥ 20 fps (auto-switch to lite model below 15 fps) |
+| UI responsiveness during tracking | No main-thread task > 50 ms caused by pose work |
+
+### 6.5 Windows version and architecture: detected, not guessed
+
+My build environment is **Linux x86_64 (Ubuntu 24.04.5 LTS, Node 22.22.0)**. It has no access to your PC, so **I cannot see your Windows version or architecture from here.** Instead:
+
+- The app reads them at runtime and shows them in Diagnostics → System. It uses the Windows registry (edition, `DisplayVersion` such as 24H2, build and revision), maps build ≥ 22000 to Windows 11 (the registry's ProductName still says "Windows 10" on 11), and reports the processor architecture plus whether the app runs natively or emulated (an x64 build on an ARM PC runs emulated).
+- Until you've run it once, M1 ships **both x64 and arm64 installers**. Diagnostics tells you which one matches your PC. After that, I build only your architecture.
+- If you'd like to tell me sooner: Settings → System → About → "System type" and "Windows specifications".
 
 ---
 
 ## 7. Milestones
 
-Each milestone ends with a pushed, reviewable set of commits on the working branch, a short changelog, and (from milestone 1) a CI-built app you can download and run. I stop after each milestone for your review.
+A commit (pushed to the project branch, see §0) at the end of each milestone, then a stop for your review.
 
-### M1. Spec, visual direction, user flow, technical proof of concept
+| # | Milestone | You can try | I test | Needs your hands-on |
+|---|---|---|---|---|
+| **1** | Spec, visual direction, flow, technical proof of concept | The PoC app on Windows: camera, live skeleton, provisional push-up counting with reasons, Diagnostics | §8.1 automated criteria | M1 test script (§9) |
+| **2** | Onboarding and core interface | First-run setup and the whole loop with simulated reps, completion moment in both motion modes | Playwright flows (incl. keyboard-only), axe-core, screenshots, contrast | Look, copy, completion moment |
+| **3** | Camera, pose tracking, dependable push-ups | Real push-ups end to end, camera setup checks, disconnects, corrections, overrides | Synthetic + fault-injection suites, licensed-footage pipeline tests | Push-up test script; thresholds revised from your results |
+| **4** | Timer, tasks, games, history | A full session ending in Overwatch 2 or Marvel Rivals launching; Session details; manual match logging | Fake-clock timer tests, kill-and-relaunch tests, storage corruption, mocked launcher | Choose your real shortcuts; confirm both games launch |
+| **5** | Knee push-ups → squats → sit-ups (Beta), each separately | Each exercise in a full session | Per-exercise suites incl. movements that must not count, cross-exercise rejection | A short script per exercise |
+| **6** | Diagnostics, accessibility, error recovery, polish | Polished Diagnostics (video/recording inputs), optional sound, every error state | axe-core + screen-reader pass (Narrator), fault injection, export contains no images | Diagnostics usability |
+| **7** | Automated checks, real-camera testing, installer | Final unsigned installer | Full suite; install/upgrade/uninstall | Final script; clean install |
 
-- **Build:** this plan (approved and amended); project scaffold (electron-vite, React, strict TS, ESLint, Prettier, Vitest, Playwright, CI); **proof of concept**: an Electron window with camera picker, live video, MediaPipe in a worker running fully offline, skeleton overlay, live elbow angle with chosen side, fps and inference time, a first push-up state machine with a reason log, and the landmark recorder.
-- **You can try:** run the PoC, do push-ups, watch angles and the reason log, record pose traces.
-- **I test:** unit tests for angle math, side selection and the state machine against synthetic sequences; MediaPipe loads with networking blocked; the pipeline runs on a sample video in a headless Chromium using a fake camera.
-- **Needs your hands-on feedback:** approve or adjust the visual direction; does your camera open and track you; fps on your machine; record 3–5 short pose traces (full reps, half reps, standing around).
-
-### M2. Onboarding and core interface
-
-- **Build:** design tokens, bundled fonts, components (button, ready-check bar, timer numerals, fields, sheet, toast), app shell with full keyboard navigation, first-run flow, Lobby, Focus, Focus complete, Move, Ready (wired to a simulated session so the whole loop is clickable), the completion moment, reduced motion, empty states.
-- **You can try:** first-run setup and the entire loop end to end, with simulated reps.
-- **I test:** Playwright flows including a keyboard-only run; axe-core scans on every screen; screenshot snapshots with motion on and off; token contrast checks.
-- **Needs your feedback:** look and feel at your screen size, copy, the completion moment.
-
-### M3. Camera selection, pose tracking, dependable push-up counting
-
-- **Build:** camera service (enumerate, remember choice, hot-plug, disconnect/reconnect, permission states per OS); Camera setup screen with ghost guide and the four checks; production pose worker (variant auto-select, GPU→CPU fallback); push-up counter v1 with feedback copy; -1/+1 correction; override flow; Diagnostics v1 (live panels, rep log, threshold sliders, recorder).
-- **You can try:** real push-ups end to end with the real camera, the setup check, unplugging the camera mid-set.
-- **I test:** trace-replay tests from your recordings with expected counts and expected rejection reasons; fault injection (jitter, dropouts, side flips, landmark jumps); full-pipeline tests on your labeled clips via fake camera; disconnect simulated by ending the media track.
-- **Needs your hands-on feedback:** the real-camera protocol (section 8.3) for push-ups. Push-ups are labeled "dependable" only after this passes on your hardware.
-
-### M4. Study timer, tasks, game shortcuts, local history
-
-- **Build:** focus timer (measured time, pause, sleep handling, restart recovery, end notification); task entry and confirmation; routine editor; game shortcuts (app picker, launcher links, test launch); storage with migrations and corruption recovery; History screen.
-- **You can try:** a complete real session ending in your actual game launching. **This is v0.1** (see section 9).
-- **I test:** timer tests with a fake clock (pause, sleep, restart); kill-and-relaunch tests mid-focus and mid-move (no lost time, no duplicate sessions); storage corruption tests; launcher tests with a mocked shell.
-- **Needs your feedback:** does your game launch correctly; is History calm and useful.
-
-### M5. Squats, then sit-ups (each validated separately)
-
-- **Build:** 5a squat definition, setup guide, copy, tests, then validation. 5b sit-ups through the same steps, starting as Beta.
-- **You can try:** each exercise in a full session.
-- **I test:** synthetic and trace-replay suites per exercise, including movements that must *not* count (e.g. bending to pick something up for squats, sitting up to reach the keyboard for sit-ups).
-- **Needs your hands-on feedback:** a separate real-camera protocol session per exercise.
-
-### M6. Diagnostics, accessibility, error recovery, polish
-
-- **Build:** Diagnostics polished into a documented screen with simulated input, video-file input, pose-recording playback, and log export; accessibility pass (screen-reader labels, live announcements like "Rep 4 of 10", focus order, text scaling, reduced motion); every error and recovery state; optional sound; light theme if wanted.
-- **You can try:** Diagnostics end to end; breaking things on purpose.
-- **I test:** axe-core plus a manual screen-reader pass on your OS; error states driven by fault injection; export bundle checked to contain no image data.
-- **Needs your feedback:** is Diagnostics easy to understand while testing.
-
-### M7. Automated checks, real-camera testing, packaged installer
-
-- **Build:** CI running typecheck, lint, unit, trace replay, end-to-end, and the pipeline regression suite; installer for your OS (signed if you have certificates); `docs/VALIDATION.md` with the real-camera results per exercise; release checklist.
-- **You can try:** installing from the installer on a clean user account.
-- **I test:** install/uninstall, first launch, permission prompts, data survives upgrade.
-- **Needs your hands-on feedback:** the final real-camera protocol run and install on your machine.
+**v0.1 = milestones 1–4.**
 
 ---
 
@@ -332,58 +281,122 @@ Each milestone ends with a pushed, reviewable set of commits on the working bran
 
 ### 8.1 Test tiers
 
-| Tier | Runs | Input | Proves |
-|---|---|---|---|
-| Unit | Every push | Hand-written values | Geometry, filters, timer, storage, launcher argument building are correct |
-| Synthetic | Every push | Generated skeletons (tempo, depth, noise, dropout) | State machine logic handles edge cases. **Does not prove accuracy.** |
-| Trace replay | Every push | Pose recordings from real people (you), labeled | Counting logic on real landmark noise |
-| Pipeline | Every push (CPU delegate) | Your labeled video clips fed as a fake webcam | Camera → MediaPipe → counter works end to end. Asserts counts, not exact landmark values |
-| End-to-end UI | Every push | Electron + fake camera | Flows, keyboard, states, restart recovery |
-| Real camera | Each counting milestone | You, live | Actual accuracy on your hardware, room, and body |
-
-Videos of you stay out of the repo unless you decide otherwise (decision below). Pose recordings contain no pixels and can be committed.
-
-### 8.2 Scenario matrix (each exercise)
-
-| Category | Scenarios | Expected |
+| Tier | Input | Proves |
 |---|---|---|
-| Full reps | Normal, slow (4 s), fast (< 1 s), pause at bottom, pause at top | All count |
-| Partial reps | Half depth, top-only bounces, no lockout, down-and-stay | None count; correct reason shown |
-| Double counts | Jitter at thresholds, side flip mid-rep, landmark jumps, wobble at bottom | Exactly one count per real rep |
-| Not exercising | Standing arm curls, kneeling, reaching for keyboard, walking past | Zero counts |
-| Occlusion | Walk out mid-rep, hand over lens, feet out of frame, second person walks by | Mid-rep loss voids that rep only; clear message; resumes cleanly |
-| Camera | Unplug mid-set, reconnect, switch camera mid-set, permission revoked | Count kept, counting paused, recovers |
-| Restart | Quit/kill mid-focus, mid-move, on Ready screen | State restored; no duplicate sessions; no lost reps |
-| Conditions | Dim light, backlit window, too close, too far, loose clothing | Setup check catches it or counting stays correct |
+| Unit | Hand-written values | Math, timer, storage, launcher arguments |
+| Synthetic | Generated skeletons (tempo, depth, noise, dropout, side flips) | State-machine logic. **Not accuracy.** |
+| Pipeline | Footage with clear reuse rights, fed as a fake webcam | Camera → MediaPipe → counter works end to end |
+| End-to-end | Electron + fake camera | Flows, states, restart recovery |
+| Real camera | You, live, from a script | Accuracy on your PC, room and body |
 
-### 8.3 Real-camera protocol (your part)
+No exercise is labeled dependable from synthetic or footage tests alone.
 
-For each exercise, on your machine and camera:
+### 8.2 Test footage policy
 
-1. Three sets of 10 full reps from three positions (ideal, slightly off-angle, farther).
-2. One set mixing 5 full and 5 partial reps, called out loud or noted.
-3. 60 seconds of not exercising in frame (walking, sitting, stretching).
-4. One set with an interruption: walk out mid-set, unplug the camera, come back.
+- Only footage whose license I've verified on its source page (CC0, CC-BY or public domain preferred) is used. Each clip gets a manifest entry: source URL, license, author, attribution text and my hand-labeled rep count.
+- Footage is downloaded by script into a git-ignored cache. It is **not committed**, even when its license would allow it, which keeps the repo small and clean.
+- **Blocker found:** this environment's network policy denies `commons.wikimedia.org`, `upload.wikimedia.org` and `www.pexels.com`. To use licensed footage, either allow `commons.wikimedia.org` and `upload.wikimedia.org` in the environment's network settings (environment menu → Edit → Network access → Allowed domains), or point me to a clip whose license you've checked. Until then, pipeline tests only verify that the model loads and runs offline. Detection quality is verified by your real-camera script.
+- Your video and pose data are never committed. Diagnostics recordings and exports stay in your local app-data folder.
 
-Each run is recorded as a pose trace (and, if you choose, a local video). I report true reps vs. counted, false counts, missed reps, and rejected reasons. **Proposed bar for "dependable":** zero counts during non-exercise movement, zero partial reps counted, at most 1 missed full rep per 30 in the ideal position. Synthetic tests passing never earns an exercise this label.
+### 8.3 Scenario matrix (each exercise)
+
+Full reps (normal/slow/fast/pauses) all count. Partial reps (half depth, top bounces, no lockout, down-and-stay) never count and show the right reason. Jitter, side flips and landmark jumps give exactly one count per rep. Not exercising (arm curls, kneeling, reaching, walking past) gives zero. Occlusion mid-rep voids only that rep. Camera unplug/reconnect/switch keeps the count. Restarts restore state with no duplicates.
 
 ---
 
-## 9. Recommendation: the smallest impressive first version (v0.1)
+## 9. Milestone 1: acceptance criteria (for your sign-off)
 
-**v0.1 "First Ready Check" = milestones 1–4.**
+M1 delivers the project foundation and a **proof of concept**, not the designed app. The PoC is a single Diagnostics-style window using the approved tokens and fonts but not the final screens (those are M2). Counting in M1 is provisional and explicitly labeled *"Logic tested on synthetic data. Accuracy not yet measured."*
 
-- First-run setup in under a minute.
-- The Lobby with the ready-check bar.
-- A real focus timer with a task you confirm.
-- Camera setup with live checks.
-- Camera-counted push-ups with explained counts, correction, and override.
-- The completion moment and your actual game launching.
-- A calm History.
-- A dev-grade Diagnostics view.
-- Packaged for your OS.
+### A. Foundation
 
-It leaves out squats, sit-ups, polished Diagnostics extras (simulated input UI, video-file input), sound, light theme, and phone pairing. That keeps the first build focused on the one loop that has to feel magical, and gets push-up accuracy validated on real data before more exercises copy its patterns.
+- A1. From a clean clone: `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` all pass in my environment. Node version pinned.
+- A2. TypeScript strict mode on, with no `any` escapes in `packages/`.
+- A3. Lint rule plus a test that fails if `packages/exercise`, `packages/sim` or `packages/pose-types` import Electron, Node built-ins or DOM APIs.
+- A4. Electron hardening verified by a test: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, CSP with no remote origins, navigation and new windows blocked.
+- A5. `THIRD_PARTY_NOTICES.md` lists Electron (MIT), MediaPipe tasks-vision (Apache-2.0), the pose model (Apache-2.0, per model card), the three fonts (OFL), and credits `parhamsoltani/pushup_counter` (MIT, used as reference only, no code copied).
+- A6. `.gitignore` excludes footage cache, recordings, exports and build output. A repo check fails if any video/image test media or `*.pose.json` outside `packages/sim/fixtures/` (synthetic only) is committed.
+
+### B. Offline pose pipeline
+
+- B1. The model (`pose_landmarker_full.task` and `_lite`) and the MediaPipe WASM files are bundled in the app. Source URLs and SHA-256 hashes are recorded.
+- B2. An automated test launches the built app with all network requests intercepted and passes only if it makes **zero** non-local requests while loading the model and processing frames.
+- B3. Pose estimation runs in a Web Worker. Frames are transferred as bitmaps and never encoded or written anywhere.
+- B4. GPU delegate is tried first with automatic CPU fallback. The active delegate is shown in Diagnostics, and the fallback path is covered by a test.
+- B5. Automated test in headless Chromium: the model loads and processes frames from a fake camera, reporting load time and inference time. (Detection quality on real people is not claimed here; see §8.2.)
+
+### C. Camera
+
+- C1. Lists every video input Windows exposes, including phone-webcam apps if installed. The chosen camera is remembered across restarts by device ID with a label fallback.
+- C2. Permission denied shows a clear message with the Windows settings path and a button that opens it (`ms-settings:privacy-webcam`).
+- C3. Unplugging the camera shows "Camera disconnected" within 2 s and keeps the count. Reconnecting or choosing another camera resumes. Covered by an automated test that ends the media track, and by your script.
+- C4. No camera frames are written to disk. An automated test scans the app-data folder after a session for image/video files and expects none.
+
+### D. Push-up counter (provisional)
+
+- D1. Implemented as a pure TypeScript module: camera-facing side selection with hysteresis, One-Euro smoothing, position gate (torso near horizontal, body line, wrist below shoulder), visibility threshold, top → bottom → top cycle, 0.5–10 s rep duration, mid-rep tracking loss voids the rep.
+- D2. Provisional defaults: top ≥ 150°, bottom ≤ 100°, body line ≥ 150°, visibility ≥ 0.6. All live-adjustable in Diagnostics, with a reset to defaults.
+- D3. Every attempt emits a `counted`, `rejected` or `voided` event with a reason code, a plain-language message, and metrics (min/max angle, duration, side, mean visibility).
+- D4. Synthetic fixture suite passes, with each case asserting the exact count *and* the expected reason:
+
+  | Case | Expected |
+  |---|---|
+  | 10 full reps at normal, slow (4 s) and fast (0.7 s) tempo | 10 each |
+  | Pause 3 s at bottom / at top | Counts normally |
+  | Half reps (bottom 120°) | 0, `not_deep_enough` |
+  | Down and stay, then leave | 0 |
+  | No lockout at top (135°) | 0, `no_lockout` |
+  | Noise ±6° around both thresholds | No double counts |
+  | Standing arm curls | 0, `not_in_push_up_position` |
+  | Hips sagging through rep | 0, `body_line` |
+  | Tracking lost 500 ms mid-rep | That rep voided, next rep counts |
+  | Far-side arm low visibility | Uses near side; counts correctly |
+  | Side flip mid-set | No spurious count |
+  | Knee push-up motion | 0, with a message suggesting the knee push-up exercise |
+
+- D5. Corrections: −1/+1 are stored as separate correction events and never change `cameraCounted`. The display shows both.
+
+### E. Diagnostics (dev-grade)
+
+- E1. Panels: System (Windows edition, version, build, architecture, native vs emulated), Camera, Model, Tracking (33 landmarks with visibility, chosen side), Exercise (phase, 10 s angle trace with threshold lines, gate checks), Rep log, Controls.
+- E2. Simulated input: a synthetic skeleton (tempo, depth, noise, dropout sliders, plus presets such as "half reps" and "arm curls") drives the same counter as the camera.
+- E3. Export log writes JSON to a folder you choose. A test asserts it contains no image data, no data URIs and, by default, no landmarks.
+- E4. Reset session clears counts, corrections and the rep log, but keeps camera and threshold choices.
+
+### F. Windows build
+
+- F1. Unsigned NSIS installers for **Windows x64 and arm64**, built in my environment and sent to you here.
+- F2. Install, launch and uninstall work without admin rights (per-user install). App data lives in `%APPDATA%\Ready Up`.
+- F3. Instructions for the unsigned-app warning: SmartScreen → "More info" → "Run anyway".
+- F4. Known M1 limitation: without Windows tooling in my environment, the `.exe` may show the default Electron icon and file details. The branded icon arrives by M7.
+
+### G. Performance (measured on your PC by the test script; reported, not hidden)
+
+- G1. Diagnostics shows window-ready time, camera-start time, model-load time, fps and inference ms. Targets are in §6.4. If your PC misses them, I report the numbers and options rather than declaring a pass.
+
+### H. Done means
+
+- **Ready for your review:** A–F pass in my environment, installers delivered, results and known limitations written in `docs/milestones/M1.md`, commit pushed to the project branch.
+- **Accepted:** you've run the M1 test script, I've recorded the summarized results (counts and timings only, no video or pose data) in `docs/milestones/M1.md`, and you approve moving to M2.
+
+**Not in M1:** final screens, onboarding, timer, games, history, other exercises, video-file and recording inputs, sound.
+
+### M1 test script (about 10 minutes, no recording needed)
+
+1. Install with the installer Diagnostics will confirm matches your PC (start with x64 if unsure). Get past SmartScreen with "More info" → "Run anyway". Launch it.
+2. Diagnostics → System: note the Windows edition, version, build and architecture, and whether it says "native".
+3. Allow the camera and pick your webcam. Note the camera-start time, model-load time, fps and inference ms.
+4. Place the camera side-on, about hip height, 2–3 m away, with your whole body and head in view.
+5. Do **5 full push-ups**. Expected: 5.
+6. Do **3 half push-ups** (stop halfway down). Expected: still 5, with "not deep enough" in the rep log.
+7. Go down and **stay down for 5 seconds**, then get up without pushing. Expected: no count.
+8. Stand side-on and do **5 arm curls**. Expected: no count, with "not in push-up position".
+9. Start a push-up and **walk out of frame** halfway. Expected: that rep voided.
+10. **Unplug the webcam** while tracking, then plug it back in. Expected: "Camera disconnected", count kept, resumes.
+11. Press **+1, then −1**. Expected: shown as corrections, camera count unchanged.
+12. Switch input to **Simulated**, try the "half reps" preset. Expected: no counts.
+13. **Export log**, quit, relaunch. Expected: your camera choice is remembered.
+14. Send me: the numbers from steps 2–3, actual vs expected counts for steps 5–12, anything confusing, and the exported log if you're comfortable (it contains no video or images).
 
 ---
 
@@ -391,25 +404,22 @@ It leaves out squats, sit-ups, polished Diagnostics extras (simulated input UI, 
 
 | Risk | Mitigation |
 |---|---|
-| Side-view tracking quality varies with clothing, lighting, floor clutter | Setup checks, confidence gating, explained rejections, override |
-| Lying-down sit-ups track poorly | Beta label; camera placement guidance; validated separately |
-| GPU delegate misbehaves on some drivers | Automatic CPU fallback; model variant switch |
-| macOS camera permission and Gatekeeper | `NSCameraUsageDescription` + camera entitlement; signing if you have an Apple Developer account, otherwise documented "Open anyway" steps |
-| Store-managed games (Xbox app, some Epic titles) need special launch targets | Support launcher URLs first; Windows AppUserModelID targets later |
-| I can't use a real camera from my build environment | Pipeline tests with fake cameras and your recorded clips; your real-camera protocol at each counting milestone |
+| Side-view tracking varies with clothing, light, clutter | Setup checks, confidence gating, explained rejections, override |
+| Lying-down sit-ups track poorly | Beta label, separate validation |
+| GPU driver issues | CPU fallback, lite model |
+| No licensed footage reachable from my environment | §8.2: allow the hosts or provide a vetted clip; your real-camera scripts remain the accuracy authority |
+| Unsigned installer warnings | Documented SmartScreen steps; signing before public release (§11) |
+| I can't run a real camera or Windows here | Fake cameras, headless Chromium, your scripts each milestone |
 
 ---
 
-## 11. Decisions I need from you
+## 11. Before a public release (not needed for the prototype)
 
-1. **Your operating system** (and version), and your phone if you'll use it as a camera. This sets the installer, the permission flow, and the phone guide I test first.
-2. **Electron + React + TypeScript + MediaPipe:** approve, or tell me if bundle size (~100 MB) matters enough to revisit Tauri.
-3. **Push-up standard:** bottom at elbow ≤ 100° (recommended) or strict ≤ 90°? Allow knee push-ups as a separate exercise?
-4. **Override policy:** should overriding Move still unlock Launch? (Recommended: yes, labeled in history.)
-5. **Sit-up definition:** full sit-up (torso to ~70°+) or crunch? OK to ship as Beta first?
-6. **Games:** which launchers or games do you want working first (Steam, Epic, Battle.net, a specific .exe)?
-7. **Test recordings:** are you willing to record short clips of yourself for testing? Should videos stay only on your machine (recommended), or go in the repo via Git LFS? Pose-only recordings (no pixels) would be committed.
-8. **Visual direction:** approve the "Ready Check" concept, palette, and type, or redirect. Dark only for v1 (recommended), or a light theme too?
-9. **Sound:** completion sound on or off by default? (Recommended: off.)
-10. **Code signing:** do you have an Apple Developer account or Windows signing certificate? Without one, installers work but show OS warnings.
-11. **Review cadence:** commits per milestone on this branch (current setup), or a pull request per milestone?
+1. **Code signing.** Either an OV/EV code-signing certificate from a certificate authority or Microsoft's Trusted Signing service. Without signing, SmartScreen warns every user, and reputation builds slowly even after signing.
+2. **Windows build tooling.** Build on Windows (a Windows CI runner or your PC) for proper icon, version info and signing.
+3. **Update strategy.** Auto-update (needs signed builds and a hosting location) or manual downloads.
+4. **Privacy statement.** Plain-language page: no network, no telemetry, camera processed locally, where data lives, how to delete it.
+5. **Licenses.** Final `THIRD_PARTY_NOTICES.md` shipped inside the app (Apache-2.0 NOTICE requirements included).
+6. **Name check.** A trademark search for "Ready Up" before public distribution.
+7. **Accessibility and validation sign-off.** `VALIDATION.md` with real-camera results per exercise and a Narrator pass.
+8. **Crash reporting decision.** Off by default; any reporting would be opt-in and local-first.

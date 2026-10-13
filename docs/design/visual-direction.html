@@ -285,16 +285,16 @@ footer { color: var(--mist); font-size: 14px; border-top: 1px solid var(--line);
 
 <!-- ================= HERO ================= -->
 <header class="hero">
-  <div class="eyebrow"><b>Build plan</b> &nbsp;·&nbsp; Draft for review &nbsp;·&nbsp; No code written yet</div>
+  <div class="eyebrow"><b>Build plan v2</b> &nbsp;·&nbsp; Direction approved &nbsp;·&nbsp; Milestone 1 criteria awaiting sign-off</div>
   <div class="wordmark">READY<span>&thinsp;UP</span></div>
-  <p class="lede">A desktop app that turns the lobby ready check into a study habit: focus for 25 minutes, do 10 camera-counted push-ups, and your game's Launch button lights up. Everything runs on your computer. Video never leaves it.</p>
+  <p class="lede">A Windows desktop app that turns the lobby ready check into a study habit: focus for 25 minutes, do 10 camera-counted push-ups, and your game's Launch button lights up. Everything runs on your computer. Video never leaves it.</p>
   <div class="rc" aria-label="Ready check example: focus done, move in progress, play locked">
     <div class="slot focus done"><div class="k">✓ Focus</div><div class="v">25:00</div></div>
     <div class="slot move active" style="--p:40%"><div class="k">Move</div><div class="v">4 / 10 push-ups</div></div>
-    <div class="slot locked"><div class="k">Play</div><div class="v">Hades II</div></div>
+    <div class="slot locked"><div class="k">Play</div><div class="v">Overwatch 2</div></div>
   </div>
   <div class="status">
-    <span class="chip hot">Waiting on your decisions</span>
+    <span class="chip hot">Visual direction approved</span><span class="chip">Windows first</span>
     <span class="chip">Full text plan: docs/PLAN.md</span>
     <span class="chip">7 milestones, review after each</span>
   </div>
@@ -389,7 +389,7 @@ footer { color: var(--mist); font-size: 14px; border-top: 1px solid var(--line);
               <div class="m-rc">
                 <div class="s focus active" style="--p:0%"><div class="k">Focus</div><div class="v">25:00</div></div>
                 <div class="s move"><div class="k">Move</div><div class="v">10 push-ups</div></div>
-                <div class="s locked"><div class="k">Play</div><div class="v">Hades II</div></div>
+                <div class="s locked"><div class="k">Play</div><div class="v">Overwatch 2</div></div>
               </div>
               <div class="row"><span class="cta">Start focus <kbd>Enter</kbd></span><span class="m-note">Edit routine</span></div>
             </div>
@@ -510,7 +510,7 @@ footer { color: var(--mist); font-size: 14px; border-top: 1px solid var(--line);
               <div><b>Chapter 4</b>you marked it done</div>
               <div><b>10</b>push-ups, camera-counted</div>
             </div>
-            <div class="row"><span class="cta gold launch">Launch Hades II <kbd>Enter</kbd></span><span class="m-note">Not now</span></div>
+            <div class="row"><span class="cta gold launch">Launch Overwatch 2 <kbd>Enter</kbd></span><span class="m-note">Not now</span></div>
           </div>
         </div>
       </div>
@@ -804,24 +804,24 @@ footer { color: var(--mist); font-size: 14px; border-top: 1px solid var(--line);
 
 <!-- ================= DECISIONS ================= -->
 <section aria-labelledby="de">
-  <div class="eyebrow"><b>Your turn</b></div>
-  <h2 id="de">Decisions I need before writing code</h2>
+  <div class="eyebrow"><b>Approved</b> · 13 October 2026</div>
+  <h2 id="de">Decisions</h2>
   <ol class="decisions">
-    <li><b>Your operating system and version</b><span>Plus your phone, if you'll use it as a camera. Sets the installer, the permission flow, and which phone guide I test first.</span></li>
-    <li><b>Approve the stack</b><span>Electron + React + TypeScript + MediaPipe. <em>Recommended.</em> Or say if a ~100 MB installer matters enough to revisit Tauri.</span></li>
-    <li><b>Push-up depth</b><span>Elbow ≤ 100° <em>(recommended)</em> or strict ≤ 90°. Add knee push-ups as their own exercise?</span></li>
-    <li><b>Does override still unlock Launch?</b><span><em>Recommended: yes</em>, labeled in history.</span></li>
-    <li><b>Sit-up definition</b><span>Full sit-up (torso to 70°+) or crunch? OK to ship as Beta first?</span></li>
-    <li><b>Which games first</b><span>Steam, Epic, Battle.net, a specific .exe or .app?</span></li>
-    <li><b>Test recordings</b><span>Will you record short clips of yourself? Keep videos only on your machine <em>(recommended)</em> or in the repo via Git LFS? Pose-only traces would be committed.</span></li>
-    <li><b>Visual direction</b><span>Approve the ready-check concept, palette and type, or redirect. Dark only for v1 <em>(recommended)</em> or a light theme too?</span></li>
-    <li><b>Sound by default</b><span>Off <em>(recommended)</em> or on?</span></li>
-    <li><b>Code signing</b><span>Do you have an Apple Developer account or a Windows signing certificate? Without one, installers work but show OS warnings.</span></li>
-    <li><b>Review cadence</b><span>Commits per milestone on the working branch, or a pull request per milestone?</span></li>
+    <li><b>Windows first</b><span>Version, build and architecture are detected by the app at runtime, not guessed. Desktop webcam first; any phone Windows presents as a webcam works.</span></li>
+    <li><b>Stack approved</b><span>Electron, React, TypeScript, local MediaPipe. ~100 MB is fine; startup and camera must stay responsive.</span></li>
+    <li><b>100° is provisional</b><span>A counting threshold, not a definition of good form. Top → bottom → top, plausible position, adequate visibility. Knee push-ups are their own exercise.</span></li>
+    <li><b>Overrides are honest</b><span>They may unlock Launch, and are recorded as overrides. Camera-counted totals include only observed reps; ±1 corrections are listed separately.</span></li>
+    <li><b>Full sit-ups, Beta</b><span>Separate from crunches, which may come later as their own exercise.</span></li>
+    <li><b>Overwatch 2 and Marvel Rivals</b><span>You pick your own shortcuts. A launch is a game session, not a match; matches can be logged by hand.</span></li>
+    <li><b>Your data stays yours</b><span>Synthetic fixtures and footage with clear reuse rights for development. Your video and pose data never go in the repo.</span></li>
+    <li><b>Dark only for v1</b><span>Slot edges slant; text, buttons and camera guidance stay level. Completion is brief (≤ 1.1 s) with an equally deliberate reduced-motion version.</span></li>
+    <li><b>Sound off by default</b><span>Optional setting to turn on.</span></li>
+    <li><b>Unsigned for now</b><span>Development installers are unsigned. Signing requirements are listed for a later public release.</span></li>
+    <li><b>Milestone commits</b><span>One commit per milestone on the project branch. No pull requests, merges or releases.</span></li>
   </ol>
 </section>
 
-<footer>Ready Up build plan · draft 1 · 13 October 2026 · Full text in docs/PLAN.md on branch claude/friendly-galileo-0oqqd3</footer>
+<footer>Ready Up build plan · version 2 · 13 October 2026 · Full text in docs/PLAN.md on branch claude/friendly-galileo-0oqqd3</footer>
 </div>
 
 <script>

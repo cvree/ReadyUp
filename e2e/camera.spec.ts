@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { launch } from './app'
+import { launch, openDiagnostics } from './app'
 
 // C1–C3 with Chromium's synthetic camera. Real hardware unplugging is in your test script.
 test('lists cameras, remembers the choice across restarts', async () => {
   const first = await launch()
   let label: string | null
   try {
+    await openDiagnostics(first.win)
     await expect(first.win.locator('[data-panel="camera"] h2 em')).toHaveText('live')
     const select = first.win.locator('[data-panel="camera"] select')
     expect(await select.locator('option').count()).toBeGreaterThanOrEqual(1)
@@ -24,6 +25,7 @@ test('lists cameras, remembers the choice across restarts', async () => {
 
   const second = await launch({ userData: first.userData })
   try {
+    await openDiagnostics(second.win)
     await expect(second.win.locator('[data-panel="camera"] h2 em')).toHaveText('live')
     await expect(second.win.locator('[data-panel="camera"] select option:checked')).toHaveText(label ?? '')
   } finally {
@@ -34,6 +36,7 @@ test('lists cameras, remembers the choice across restarts', async () => {
 test('unplugging shows "Camera disconnected" within 2 s, keeps the count, and reconnects', async () => {
   const { app, win } = await launch()
   try {
+    await openDiagnostics(win)
     await expect(win.locator('[data-panel="camera"] h2 em')).toHaveText('live')
     await win.getByRole('button', { name: 'Correct count: plus one' }).click()
     const t0 = Date.now()
@@ -53,6 +56,7 @@ test('unplugging shows "Camera disconnected" within 2 s, keeps the count, and re
 test('camera permission denied explains the Windows setting and offers a button to open it', async () => {
   const { app, win } = await launch({ env: { READYUP_E2E_DENY_CAMERA: '1' } })
   try {
+    await openDiagnostics(win)
     const card = win.locator('[data-state="permission-denied"]')
     await expect(card).toBeVisible()
     await expect(card).toContainText('Privacy & security → Camera')

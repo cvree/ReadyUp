@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { launch, waitForTracking } from './app'
+import { launch, openDiagnostics, waitForTracking } from './app'
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -25,6 +25,7 @@ function looksLikeMedia(file: string): boolean {
 test('a live session writes no image or video files to app data', async () => {
   const { app, win, userData } = await launch()
   try {
+    await openDiagnostics(win)
     await waitForTracking(win)
     await win.waitForTimeout(4000)
   } finally {
@@ -38,6 +39,7 @@ test('a live session writes no image or video files to app data', async () => {
 test('exported log has no image data and excludes landmarks unless asked', async () => {
   const { app, win, exportDir } = await launch()
   try {
+    await openDiagnostics(win)
     await waitForTracking(win)
     await win.getByRole('button', { name: 'Export log…' }).click()
     await expect(win.getByText(/Saved to /)).toBeVisible()

@@ -1,5 +1,6 @@
 import { LANDMARK_NAMES, type PoseFrame } from '@readyup/pose-types'
 import { messageFor } from './messages'
+import { EXERCISE_NAMES } from './names'
 import { OneEuroFilter } from './one-euro'
 import { SideSelector, meanVisibility } from './side'
 import type {
@@ -228,7 +229,7 @@ export class RepCounter {
   /** Gates failing beyond tolerance: abandon any rep, and explain cycles done out of position. */
   private outOfPosition(s: number, t: number, failing: GateResult, side: CounterSnapshot['side'], vis: number, events: RepEvent[]): void {
     if (MID_REP.has(this.phase)) {
-      this.emit(events, 'rejected', failing.reason, t, this.attemptMetrics(t, side))
+      this.emit(events, 'rejected', failing.reason, t, this.attemptMetrics(t, side), undefined, failing.suggest)
       this.toWaiting(t)
     } else if (this.phase === 'top') {
       this.toWaiting(t)
@@ -240,7 +241,7 @@ export class RepCounter {
       if (sh.sawBottom) {
         this.emit(events, 'rejected', failing.reason, t, {
           minAngle: sh.min, maxAngle: sh.max, durationMs: t - sh.start, side, meanVisibility: vis
-        })
+        }, undefined, failing.suggest)
       }
       this.shadow = { ...freshShadow(t), sawTop: true, min: s, max: s }
     } else if (s <= this.th.bottom && sh.sawTop) {
@@ -309,9 +310,17 @@ export class RepCounter {
     }
   }
 
-  private emit(events: RepEvent[], outcome: RepEvent['outcome'], reason: ReasonCode, t: number, metrics: RepMetrics, joints?: string[]): void {
-    const message = messageFor(reason, metrics, { bottom: this.th.bottom, top: this.th.top, ...(joints ? { joints } : {}) })
-    events.push({ outcome, reason, message, t, count: this.count, metrics, ...(joints && joints.length ? { joints } : {}) })
+  private emit(
+    events: RepEvent[], outcome: RepEvent['outcome'], reason: ReasonCode, t: number, metrics: RepMetrics, joints?: string[], suggest?: string
+  ): void {
+    const suggestName = suggest ? EXERCISE_NAMES[suggest] : undefined
+    const message = messageFor(reason, metrics, {
+      def: this.def, th: this.th, ...(joints ? { joints } : {}), ...(suggestName ? { suggestName } : {})
+    })
+    events.push({
+      outcome, reason, message, t, count: this.count, metrics,
+      ...(joints && joints.length ? { joints } : {}), ...(suggest ? { suggest } : {})
+    })
   }
 
   private snapshot(

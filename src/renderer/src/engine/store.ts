@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Correction, CounterSnapshot, RepEvent, Thresholds } from '@readyup/exercise'
 import { pushUp } from '@readyup/exercise'
 import type { ExportResult, StartupMetrics, SystemInfo } from '@shared/ipc'
+import type { SetupCheck } from '@readyup/exercise'
 import type { CameraDevice, CameraState } from '../camera/CameraService'
 import type { PoseStatus } from '../pose/PoseClient'
 
@@ -11,7 +12,7 @@ export interface SimSettings {
   presetId: string
   /** Speed multiplier for the custom movement. */
   tempo: number
-  /** Bottom elbow angle for the custom movement, degrees. */
+  /** Bottom angle for the custom movement, degrees. */
   depth: number
   /** Landmark noise, pixels. */
   noise: number
@@ -19,10 +20,12 @@ export interface SimSettings {
   dropout: number
 }
 
-export interface AppState {
+/** Live tracking state (camera, model, counter). The app's session state lives in state/app.ts. */
+export interface EngineState {
   system: SystemInfo | null
   startup: StartupMetrics | null
   source: SourceKind
+  exerciseId: string
   camera: CameraState
   devices: CameraDevice[]
   mirror: boolean
@@ -30,6 +33,8 @@ export interface AppState {
   perf: { fps: number | null; inferenceMs: number | null; latencyMs: number | null; dropped: number }
   snapshot: CounterSnapshot | null
   visibility: number[] | null
+  setup: SetupCheck[] | null
+  luma: number | null
   thresholds: Thresholds
   repLog: RepEvent[]
   cameraCounted: number
@@ -42,10 +47,11 @@ export interface AppState {
   announce: string
 }
 
-export const useApp = create<AppState>(() => ({
+export const useApp = create<EngineState>(() => ({
   system: null,
   startup: null,
   source: 'live',
+  exerciseId: 'push_up',
   camera: { status: 'idle', deviceId: null, label: null, width: null, height: null, frameRate: null, startMs: null, message: null },
   devices: [],
   mirror: true,
@@ -53,6 +59,8 @@ export const useApp = create<AppState>(() => ({
   perf: { fps: null, inferenceMs: null, latencyMs: null, dropped: 0 },
   snapshot: null,
   visibility: null,
+  setup: null,
+  luma: null,
   thresholds: { ...pushUp.defaultThresholds },
   repLog: [],
   cameraCounted: 0,

@@ -1,5 +1,5 @@
 import { LANDMARK_COUNT, type Landmark, type PoseFrame } from '@readyup/pose-types'
-import { RepCounter, RepTally, pushUp, type CounterSnapshot, type RepEvent, type Thresholds } from '@readyup/exercise'
+import { RepCounter, RepTally, exerciseById, setupChecks, type Correction, type CounterSnapshot, type RepEvent, type Thresholds } from '@readyup/exercise'
 import { generate, normalReps, presetById, type Segment } from '@readyup/sim'
 import { CameraService, type CameraDevice, type CameraState } from '../camera/CameraService'
 import { PoseClient, type PoseResult, type PoseStatus } from '../pose/PoseClient'
@@ -14,11 +14,22 @@ export interface FrameView {
   source: SourceKind
 }
 
+export interface TallyView {
+  cameraCounted: number
+  corrections: readonly Correction[]
+  total: number
+  lastEvent: RepEvent | null
+}
+
 type Listener = (v: FrameView) => void
+type TallyListener = (t: TallyView) => void
 
 const UI_INTERVAL_MS = 100
-const POSE_RING = 900 // ~30 s at 30 fps, only kept in memory; exported only if the person asks
+const POSE_RING = 900 // ~30 s at 30 fps, kept in memory only; exported only if the person asks
 const ANALYSIS_WIDTH = 640
+const LUMA_INTERVAL_MS = 600
+const SLOW_FPS = 15
+const SLOW_FPS_AFTER_MS = 6000
 
 function toFrame(r: PoseResult): PoseFrame {
   let landmarks: Landmark[] | null = null
@@ -31,14 +42,18 @@ function toFrame(r: PoseResult): PoseFrame {
   return { t: r.t, width: r.width, height: r.height, landmarks }
 }
 
-/** Wires input (camera or simulation) → pose → counter → UI. Owns no React state. */
+/**
+ * Wires input (camera or simulation) → pose → counter → UI. The camera only runs while a camera
+ * screen is mounted (setup, move, diagnostics); the model can be warmed up in the background.
+ */
 export class Engine {
-  readonly counter = new RepCounter(pushUp)
+  counter = new RepCounter(exerciseById('push_up'))
   readonly tally = new RepTally()
   private camera: CameraService | null = null
   private readonly pose: PoseClient
   private video: HTMLVideoElement | null = null
   private listeners = new Set<Listener>()
+  private tallyListeners = new Set<TallyListener>()
   private lastUi = 0
   private fps: number | null = null
   private inferenceMs: number | null = null
@@ -49,18 +64,22 @@ export class Engine {
   private simFrames: PoseFrame[] = []
   private simIndex = 0
   private source: SourceKind = 'live'
-  private loopActive = false
+  private loopToken = 0
   private capturing = false
   private readonly captureStartedAt = new Map<number, number>()
   private latencyMs: number | null = null
-  private booted = false
+  private lumaCanvas: OffscreenCanvas | null = null
+  private lastLumaAt = 0
+  private liveSince = 0
+  private autoLiteDone = false
+  private cameraWanted = false
+  private infoLoaded = false
 
   constructor() {
     this.pose = new PoseClient(
       (r) => this.onPose(r),
       (s) => this.onModel(s),
       (message, count) => {
-        // Log the first few and then every 100th, so a persistent failure is visible without flooding.
         if (count <= 3 || count % 100 === 0) window.readyup.log('pose.frame_error', { message: message.slice(0, 300), count })
       }
     )
@@ -71,56 +90,119 @@ export class Engine {
     return () => this.listeners.delete(fn)
   }
 
-  async boot(video: HTMLVideoElement): Promise<void> {
-    if (this.booted) return
-    this.booted = true
-    this.video = video
+  /** Count and correction changes, for the session in progress. */
+  onTally(fn: TallyListener): () => void {
+    this.tallyListeners.add(fn)
+    return () => this.tallyListeners.delete(fn)
+  }
+
+  /** System info and startup metrics, for Diagnostics. */
+  async loadInfo(): Promise<void> {
+    if (this.infoLoaded) return
+    this.infoLoaded = true
     const api = window.readyup
     const [settings, startup] = await Promise.all([api.getSettings(), api.getStartupMetrics()])
     useApp.setState({ mirror: settings.mirror, startup })
     void api.getSystemInfo().then((system) => useApp.setState({ system }))
-
-    this.camera = new CameraService(video, (s) => this.onCamera(s), (devices) => useApp.setState({ devices }))
-    const modelReady = this.pose.init('full', 'auto')
-    await this.camera.refreshDevices()
-    const preferred = this.camera.resolvePreferred(settings.camera)
-    await this.camera.start(preferred)
-    await modelReady
-    this.startLoop()
-    api.log('engine.booted', { camera: this.camera.state.status, model: this.pose.status.status, delegate: this.pose.status.delegate })
   }
 
-  // ---------- input: live camera ----------
+  /** Loads the pose model in the background so Move starts instantly. Safe to call repeatedly. */
+  warmModel(): void {
+    if (this.pose.status.status === 'idle' || this.pose.status.status === 'error') void this.pose.init('full', 'auto')
+  }
 
-  private startLoop(): void {
-    const video = this.video
-    if (!video || this.loopActive) return
-    this.loopActive = true
+  // ---------- camera lifecycle ----------
+
+  /** A camera screen mounted its video element: show the stream there and start the camera. */
+  async attach(video: HTMLVideoElement): Promise<void> {
+    this.video = video
+    this.cameraWanted = true
+    if (!this.camera) this.camera = new CameraService(video, (s) => this.onCamera(s), (devices) => useApp.setState({ devices }))
+    else this.camera.setVideo(video)
+    this.warmModel()
+    this.startLoop(video)
+    if (this.source === 'live' && (this.camera.state.status === 'idle' || this.camera.state.status === 'disconnected' || this.camera.state.status === 'error')) {
+      await this.startPreferredCamera()
+    }
+  }
+
+  /** The camera screen went away: stop the camera so its light turns off. */
+  detach(video: HTMLVideoElement): void {
+    if (this.video !== video) return
+    this.cameraWanted = false
+    this.loopToken++
+    this.video = null
+    this.interrupt()
+    this.camera?.stop()
+    this.stopSim()
+    if (this.source === 'sim') {
+      this.source = 'live'
+      useApp.setState({ source: 'live' })
+    }
+  }
+
+  private async startPreferredCamera(): Promise<void> {
+    if (!this.camera) return
+    await this.camera.refreshDevices()
+    const settings = await window.readyup.getSettings()
+    useApp.setState({ mirror: settings.mirror })
+    if (!this.cameraWanted) return
+    const s = await this.camera.start(this.camera.resolvePreferred(settings.camera))
+    if (s.status === 'live' && s.deviceId && (!settings.camera || settings.camera.deviceId !== s.deviceId)) {
+      await window.readyup.updateSettings({ camera: { deviceId: s.deviceId, label: s.label ?? '' } })
+    }
+    if (!this.cameraWanted) this.camera.stop()
+  }
+
+  private startLoop(video: HTMLVideoElement): void {
+    const token = ++this.loopToken
     const tick = (now: number): void => {
-      if (this.source === 'live' && this.camera?.state.status !== 'idle') {
-        this.camera?.noteFrame()
-        if (this.camera?.state.status === 'live' && this.pose.ready && video.videoWidth > 0) {
-          if (this.pose.isBusy || this.capturing) {
-            this.dropped++
-          } else {
-            // One frame in flight at a time (capture → worker → result) keeps latency low.
-            this.capturing = true
-            this.captureStartedAt.set(now, performance.now())
-            const h = Math.round((ANALYSIS_WIDTH * video.videoHeight) / video.videoWidth)
-            createImageBitmap(video, { resizeWidth: ANALYSIS_WIDTH, resizeHeight: h, resizeQuality: 'low' })
-              .then((bmp) => {
-                if (!this.pose.submit(bmp, now)) this.captureStartedAt.delete(now)
-              })
-              .catch(() => this.captureStartedAt.delete(now))
-              .finally(() => {
-                this.capturing = false
-              })
+      if (token !== this.loopToken) return
+      if (this.source === 'live' && this.camera && this.camera.state.status !== 'idle') {
+        this.camera.noteFrame()
+        if (this.camera.state.status === 'live' && video.videoWidth > 0) {
+          this.sampleLuma(video, now)
+          if (this.pose.ready) {
+            if (this.pose.isBusy || this.capturing) {
+              this.dropped++
+            } else {
+              // One frame in flight at a time (capture → worker → result) keeps latency low.
+              this.capturing = true
+              this.captureStartedAt.set(now, performance.now())
+              const h = Math.round((ANALYSIS_WIDTH * video.videoHeight) / video.videoWidth)
+              createImageBitmap(video, { resizeWidth: ANALYSIS_WIDTH, resizeHeight: h, resizeQuality: 'low' })
+                .then((bmp) => {
+                  if (!this.pose.submit(bmp, now)) this.captureStartedAt.delete(now)
+                })
+                .catch(() => this.captureStartedAt.delete(now))
+                .finally(() => {
+                  this.capturing = false
+                })
+            }
           }
         }
       }
       video.requestVideoFrameCallback(tick)
     }
     video.requestVideoFrameCallback(tick)
+  }
+
+  /** Mean brightness from a tiny downscaled copy of the frame. Pixels are read and discarded. */
+  private sampleLuma(video: HTMLVideoElement, now: number): void {
+    if (now - this.lastLumaAt < LUMA_INTERVAL_MS) return
+    this.lastLumaAt = now
+    try {
+      this.lumaCanvas ??= new OffscreenCanvas(32, 18)
+      const ctx = this.lumaCanvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) return
+      ctx.drawImage(video, 0, 0, 32, 18)
+      const d = ctx.getImageData(0, 0, 32, 18).data
+      let sum = 0
+      for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i]! + 0.7152 * d[i + 1]! + 0.0722 * d[i + 2]!
+      useApp.setState({ luma: sum / (d.length / 4) })
+    } catch {
+      /* brightness is a hint only */
+    }
   }
 
   private onPose(r: PoseResult): void {
@@ -138,8 +220,20 @@ export class Engine {
       this.latencyMs = this.latencyMs === null ? lat : this.latencyMs * 0.9 + lat * 0.1
     }
     if (this.captureStartedAt.size > 10) this.captureStartedAt.clear()
+    this.maybeSwitchToLite(now)
     if (this.source !== 'live') return
     this.process(toFrame(r))
+  }
+
+  /** If tracking stays below 15 fps on the full model, switch to the lite model once. */
+  private maybeSwitchToLite(now: number): void {
+    if (this.autoLiteDone || this.pose.status.variant !== 'full' || !this.liveSince || this.fps === null) return
+    if (now - this.liveSince > SLOW_FPS_AFTER_MS && this.fps < SLOW_FPS) {
+      this.autoLiteDone = true
+      window.readyup.log('model.auto_lite', { fps: Math.round(this.fps) })
+      this.interrupt()
+      void this.pose.init('lite', 'auto')
+    }
   }
 
   // ---------- input: simulation ----------
@@ -151,7 +245,7 @@ export class Engine {
     }
     const k = 1 / Math.max(0.25, sim.tempo)
     const reps = normalReps({ bottomDeg: sim.depth, descendMs: 700 * k, ascendMs: 700 * k, holdTopMs: 300 * k, holdBottomMs: 100 * k })
-    const segs: Segment[] = [{ kind: 'hold', pose: 'plank', elbowDeg: 170, durationMs: 1000 }, reps]
+    const segs: Segment[] = [{ kind: 'hold', pose: 'plank', deg: 170, durationMs: 1000 }, reps]
     const total = 1000 + 10 * (reps.holdTopMs + reps.descendMs + reps.holdBottomMs + reps.ascendMs)
     const dropouts: Array<{ startMs: number; durationMs: number }> = []
     const n = Math.round((sim.dropout * total) / 60000)
@@ -163,12 +257,10 @@ export class Engine {
     this.stopSim()
     this.simFrames = this.buildSimFrames(useApp.getState().sim)
     this.simIndex = 0
-    const base = performance.now()
-    let offset = base
+    let offset = performance.now()
     this.simTimer = window.setInterval(() => {
       const f = this.simFrames[this.simIndex]
       if (!f) {
-        // Loop: regenerate so noise differs each pass.
         this.simFrames = this.buildSimFrames(useApp.getState().sim)
         this.simIndex = 0
         offset = performance.now()
@@ -187,19 +279,23 @@ export class Engine {
   // ---------- processing ----------
 
   private process(frame: PoseFrame): void {
+    const before = this.tally.cameraCounted
     const snap = this.counter.update(frame)
-    this.tally.setCameraCounted(snap.count)
+    this.tally.setCameraCounted(this.baseCount + snap.count)
     this.poseRing.push({ t: frame.t, landmarks: frame.landmarks ? frame.landmarks.map((l) => [l.x, l.y, l.z, l.visibility]) : null })
     if (this.poseRing.length > POSE_RING) this.poseRing.shift()
     const thresholds = this.counter.thresholds
     for (const l of this.listeners) l({ frame, snap, thresholds, source: this.source })
     if (snap.events.length) this.recordEvents(snap.events)
+    if (this.tally.cameraCounted !== before || snap.events.length) this.emitTally(snap.events[snap.events.length - 1] ?? null)
     const now = performance.now()
     if (snap.events.length || now - this.lastUi > UI_INTERVAL_MS) {
       this.lastUi = now
+      const st = useApp.getState()
       useApp.setState({
         snapshot: snap,
         visibility: frame.landmarks ? frame.landmarks.map((l) => l.visibility) : null,
+        setup: setupChecks({ frame, def: this.counter.exercise, luma: this.source === 'live' ? st.luma : null, minVisibility: thresholds.minVisibility }),
         cameraCounted: this.tally.cameraCounted,
         total: this.tally.total,
         perf: {
@@ -208,35 +304,46 @@ export class Engine {
           latencyMs: this.source === 'live' ? this.latencyMs : null,
           dropped: this.dropped
         },
-        hint: liveHint(snap, thresholds)
+        hint: liveHint(snap, this.counter.exercise, thresholds)
       })
     }
+  }
+
+  private emitTally(lastEvent: RepEvent | null): void {
+    const view: TallyView = { cameraCounted: this.tally.cameraCounted, corrections: this.tally.corrections, total: this.tally.total, lastEvent }
+    for (const l of this.tallyListeners) l(view)
   }
 
   private recordEvents(events: RepEvent[]): void {
     const log = [...events].reverse().concat(useApp.getState().repLog).slice(0, 300)
     const last = events[events.length - 1]!
+    const unit = this.counter.exercise.copy.unit
     useApp.setState({
       repLog: log,
-      announce: last.outcome === 'counted' ? `Rep ${last.count} counted` : `Not counted: ${last.message}`
+      announce: last.outcome === 'counted' ? `${this.tally.cameraCounted} ${unit}` : `Not counted. ${last.message}`
     })
     for (const e of events) {
       window.readyup.log('rep', {
-        outcome: e.outcome, reason: e.reason, count: e.count, minAngle: round(e.metrics.minAngle), maxAngle: round(e.metrics.maxAngle),
-        durationMs: Math.round(e.metrics.durationMs), side: e.metrics.side, meanVisibility: round(e.metrics.meanVisibility, 2), source: this.source
+        exercise: this.counter.exercise.id, outcome: e.outcome, reason: e.reason, count: e.count, minAngle: round(e.metrics.minAngle),
+        maxAngle: round(e.metrics.maxAngle), durationMs: Math.round(e.metrics.durationMs), side: e.metrics.side,
+        meanVisibility: round(e.metrics.meanVisibility, 2), source: this.source
       })
     }
   }
 
   private interrupt(): void {
     const ev = this.counter.interrupt(performance.now())
-    if (ev) this.recordEvents([ev])
+    if (ev) {
+      this.recordEvents([ev])
+      this.emitTally(ev)
+    }
   }
 
   // ---------- state from services ----------
 
   private onCamera(s: CameraState): void {
     useApp.setState({ camera: s })
+    if (s.status === 'live') this.liveSince = performance.now()
     window.readyup.log('camera.state', { status: s.status, width: s.width, height: s.height, frameRate: s.frameRate, startMs: s.startMs })
     if (s.status === 'disconnected' || s.status === 'stalled') this.interrupt()
   }
@@ -247,6 +354,25 @@ export class Engine {
   }
 
   // ---------- actions ----------
+
+  /** Starts a fresh count for an exercise (used at the start of each Move phase). */
+  setExercise(id: string, restore?: { cameraCounted: number; corrections: readonly Correction[] }): void {
+    const def = exerciseById(id)
+    this.counter = new RepCounter(def)
+    this.tally.reset()
+    if (restore) {
+      // After a restart, reps already counted by the camera carry over.
+      this.tally.setCameraCounted(restore.cameraCounted)
+      for (const c of restore.corrections) this.tally.correct(c.delta, c.t)
+      this.baseCount = restore.cameraCounted
+    } else {
+      this.baseCount = 0
+    }
+    useApp.setState({ exerciseId: def.id, thresholds: this.counter.thresholds, repLog: [], cameraCounted: this.tally.cameraCounted, corrections: [...this.tally.corrections], total: this.tally.total, snapshot: null })
+  }
+
+  /** Reps counted before a restart, added to the counter's own count. */
+  private baseCount = 0
 
   async selectCamera(deviceId: string): Promise<void> {
     if (!this.camera) return
@@ -259,10 +385,7 @@ export class Engine {
 
   async retryCamera(): Promise<void> {
     if (!this.camera) return
-    await this.camera.refreshDevices()
-    const settings = await window.readyup.getSettings()
-    const s = await this.camera.start(this.camera.resolvePreferred(settings.camera))
-    if (s.status === 'live' && s.deviceId && !settings.camera) await window.readyup.updateSettings({ camera: { deviceId: s.deviceId, label: s.label ?? '' } })
+    await this.startPreferredCamera()
   }
 
   simulateDisconnect(): void {
@@ -276,6 +399,7 @@ export class Engine {
 
   async setModel(variant: ModelVariant): Promise<void> {
     this.interrupt()
+    this.autoLiteDone = true
     await this.pose.init(variant, 'auto')
   }
 
@@ -290,7 +414,7 @@ export class Engine {
       this.startSim()
     } else {
       this.stopSim()
-      await this.retryCamera()
+      if (this.cameraWanted) await this.startPreferredCamera()
     }
   }
 
@@ -318,14 +442,17 @@ export class Engine {
     if (!this.tally.correct(delta, Date.now())) return
     useApp.setState({ corrections: [...this.tally.corrections], total: this.tally.total, announce: `Manual correction ${delta > 0 ? 'plus' : 'minus'} one. Total ${this.tally.total}.` })
     window.readyup.log('correction', { delta, cameraCounted: this.tally.cameraCounted, total: this.tally.total })
+    this.emitTally(null)
   }
 
   resetSession(): void {
     this.counter.reset()
     this.tally.reset()
+    this.baseCount = 0
     this.poseRing = []
     useApp.setState({ repLog: [], corrections: [], cameraCounted: 0, total: 0, snapshot: null, announce: 'Session reset' })
     window.readyup.log('session.reset', {})
+    this.emitTally(null)
   }
 
   async exportLog(): Promise<void> {
@@ -336,8 +463,8 @@ export class Engine {
       metrics: {
         fps: st.perf.fps === null ? null : round(st.perf.fps, 1),
         inferenceMs: st.perf.inferenceMs === null ? null : round(st.perf.inferenceMs, 1),
-        droppedFrames: st.perf.dropped,
         latencyMs: st.perf.latencyMs === null ? null : round(st.perf.latencyMs, 1),
+        droppedFrames: st.perf.dropped,
         cameraStartMs: st.camera.startMs,
         modelLoadMs: st.model.loadMs === null ? null : Math.round(st.model.loadMs),
         modelVariant: st.model.variant,
@@ -345,6 +472,7 @@ export class Engine {
         cameraStatus: st.camera.status,
         cameraResolution: st.camera.width && st.camera.height ? `${st.camera.width}x${st.camera.height}` : null,
         source: st.source,
+        exercise: st.exerciseId,
         cameraCounted: st.cameraCounted,
         total: st.total
       },

@@ -19,7 +19,11 @@ test('renderer is sandboxed, isolated and has no Node access', async () => {
     }))
     expect(globals.require).toBe('undefined')
     expect(globals.process).toBe('undefined')
-    expect(globals.api).toEqual(['exportLog', 'getSettings', 'getStartupMetrics', 'getSystemInfo', 'log', 'openCameraSettings', 'updateSettings'])
+    expect(globals.api).toEqual([
+      'addMatch', 'clearActiveSession', 'deleteAllData', 'exportHistory', 'exportLog', 'getRuntimeConfig', 'getSettings', 'getStartupMetrics',
+      'getSystemInfo', 'launchGame', 'listHistory', 'loadActiveSession', 'log', 'notify', 'onPower', 'openCameraSettings', 'pickShortcut',
+      'saveActiveSession', 'saveRecord', 'updateSettings', 'validateGame'
+    ])
   } finally {
     await app.close()
   }

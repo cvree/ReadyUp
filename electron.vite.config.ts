@@ -6,6 +6,7 @@ const alias = {
   '@readyup/pose-types': resolve(__dirname, 'packages/pose-types/src/index.ts'),
   '@readyup/exercise': resolve(__dirname, 'packages/exercise/src/index.ts'),
   '@readyup/sim': resolve(__dirname, 'packages/sim/src/index.ts'),
+  '@readyup/session': resolve(__dirname, 'packages/session/src/index.ts'),
   '@shared': resolve(__dirname, 'src/shared')
 }
 

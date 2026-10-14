@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { LANDMARK_NAMES } from '@readyup/pose-types'
+import { EXERCISE_LIST, exerciseById } from '@readyup/exercise'
 import { PRESETS } from '@readyup/sim'
 import { engine } from '../engine/engine'
 import { useApp } from '../engine/store'
@@ -80,19 +81,30 @@ export function ModelPanel(): React.JSX.Element {
 export function SourcePanel(): React.JSX.Element {
   const source = useApp((s) => s.source)
   const sim = useApp((s) => s.sim)
+  const exerciseId = useApp((s) => s.exerciseId)
   return (
     <Panel title="Input" id="input">
+      <label className="field">
+        <span>Exercise</span>
+        <select value={exerciseId} onChange={(e) => engine.setExercise(e.target.value)}>
+          {EXERCISE_LIST.map((x) => <option key={x.id} value={x.id}>{x.name}{x.beta ? ' (Beta)' : ''}</option>)}
+        </select>
+      </label>
       <Segmented label="Input source" value={source} options={[{ value: 'live', label: 'Live camera' }, { value: 'sim', label: 'Simulated' }]} onChange={(v) => void engine.setSource(v)} />
       {source === 'sim' && (
         <div className="stack">
           <label className="field">
             <span>Movement</span>
             <select value={sim.presetId} onChange={(e) => engine.updateSim({ presetId: e.target.value })}>
-              {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              <option value="custom">Custom (sliders)</option>
+              {EXERCISE_LIST.map((x) => (
+                <optgroup key={x.id} label={x.name}>
+                  {PRESETS.filter((p) => p.exercise === x.id).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </optgroup>
+              ))}
+              <option value="custom">Custom push-ups (sliders)</option>
             </select>
           </label>
-          <p className="fine">{sim.presetId === 'custom' ? '10 reps shaped by the sliders below.' : PRESETS.find((p) => p.id === sim.presetId)?.description}</p>
+          <p className="fine">{sim.presetId === 'custom' ? '10 push-ups shaped by the sliders below.' : PRESETS.find((p) => p.id === sim.presetId)?.description}</p>
           {sim.presetId === 'custom' && (
             <>
               <Slider label="Tempo" value={sim.tempo} min={0.4} max={2.5} step={0.1} unit="×" onChange={(v) => engine.updateSim({ tempo: v })} />
@@ -110,6 +122,7 @@ export function SourcePanel(): React.JSX.Element {
 export function ExercisePanel(): React.JSX.Element {
   const snap = useApp((s) => s.snapshot)
   const th = useApp((s) => s.thresholds)
+  const def = exerciseById(useApp((s) => s.exerciseId))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = canvasRef.current
@@ -140,15 +153,14 @@ export function ExercisePanel(): React.JSX.Element {
   }, [])
   const extra = snap?.signals.extra ?? {}
   return (
-    <Panel title="Exercise · push-ups" id="exercise" badge={<em className="phase">{snap ? snap.phase.toUpperCase() : '—'}</em>}>
-      <canvas ref={canvasRef} className="trace" aria-label={`Elbow angle over the last 10 seconds, with the top threshold at ${th.top}° and bottom at ${th.bottom}°`} role="img" />
+ <Panel title={`Exercise · ${def.name.toLowerCase()}`} id="exercise" badge={<em className="phase">{snap ? snap.phase.toUpperCase() : '—'}</em>}>
+      <canvas ref={canvasRef} className="trace" aria-label={`${def.copy.primaryLabel} angle over the last 10 seconds, with the top threshold at ${th.top}° and bottom at ${th.bottom}°`} role="img" />
       <KV items={[
-        ['Elbow (smoothed)', snap?.signals.primary != null ? `${Math.round(snap.signals.primary)}°` : null],
-        ['Elbow (raw)', snap?.signals.primaryRaw != null ? `${Math.round(snap.signals.primaryRaw)}°` : null],
+        [`${def.copy.primaryLabel} (smoothed)`, snap?.signals.primary != null ? `${Math.round(snap.signals.primary)}°` : null],
+        [`${def.copy.primaryLabel} (raw)`, snap?.signals.primaryRaw != null ? `${Math.round(snap.signals.primaryRaw)}°` : null],
         ['Side used', snap?.side ?? null],
         ['Tracking', snap?.tracking ?? null],
-        ['Body incline', extra.bodyIncline !== undefined ? `${Math.round(extra.bodyIncline)}°` : null],
-        ['Knee', extra.knee !== undefined ? `${Math.round(extra.knee)}°` : null]
+        ...Object.entries(extra).map(([k, v]): [string, string] => [k.replace(/([A-Z])/g, ' $1').toLowerCase(), `${Math.round(v)}°`])
       ]} />
       <ul className="gates" aria-label="Position checks">
         {(snap?.gates ?? []).map((g) => (

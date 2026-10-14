@@ -10,8 +10,8 @@ export type ReasonCode =
   | 'no_lockout'
   | 'too_fast'
   | 'too_slow'
-  | 'not_in_push_up_position'
-  | 'knee_push_up_detected'
+  | 'not_in_position'
+  | 'other_exercise'
   | 'hips_sagging'
   | 'hips_piking'
   | 'tracking_lost'
@@ -39,6 +39,8 @@ export interface RepEvent {
   metrics: RepMetrics
   /** Joint names involved, for tracking-loss and framing reasons. */
   joints?: string[]
+  /** For 'other_exercise': the exercise this movement looked like. */
+  suggest?: string
 }
 
 export interface GateResult {
@@ -52,6 +54,8 @@ export interface GateResult {
   unit: '°' | ''
   /** Reason reported when this gate fails. */
   reason: ReasonCode
+  /** For 'other_exercise': the exercise id this looks like. */
+  suggest?: string
 }
 
 /** All counting thresholds. Provisional; adjustable in Diagnostics. */
@@ -101,10 +105,29 @@ export interface CounterSnapshot {
   events: RepEvent[]
 }
 
+/** The words an exercise uses for feedback. Plain, encouraging, says what to do next. */
+export interface ExerciseCopy {
+  /** Plural noun for the count, e.g. "push-ups". */
+  unit: string
+  /** What the primary angle measures, e.g. "Elbow". */
+  primaryLabel: string
+  notDeepEnough(minAngle: number, bottom: number): string
+  noLockout: string
+  notInPosition: string
+  hipsSagging?: string
+  hipsPiking?: string
+  phase: Record<Phase, string>
+}
+
 /** Everything specific to one exercise. The counter itself is exercise-agnostic. */
 export interface ExerciseDefinition {
   id: string
   name: string
+  /** Detection not yet validated on real cameras. Shown as a Beta label. */
+  beta: boolean
+  /** Camera placement the exercise needs. */
+  view: 'side' | 'side_or_angle'
+  copy: ExerciseCopy
   defaultThresholds: Thresholds
   /** Joints (indices) that must be visible on the chosen side. */
   requiredJoints(side: Side): readonly number[]

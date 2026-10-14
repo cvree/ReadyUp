@@ -42,6 +42,24 @@ export async function blockedRequests(app: ElectronApplication): Promise<Array<{
   return app.evaluate(() => (globalThis as unknown as { __readyupTest: { blockedRequests: () => Array<{ url: string }> } }).__readyupTest.blockedRequests())
 }
 
+/** Skips onboarding if shown, then opens Diagnostics (which turns the camera on). */
+export async function openDiagnostics(win: Page): Promise<void> {
+  const skip = win.getByRole('button', { name: 'Skip setup' })
+  await win.locator('.onboarding, .lobby').first().waitFor()
+  if (await skip.isVisible()) await skip.click()
+  await win.locator('.lobby').waitFor()
+  await win.keyboard.press('Control+Shift+D')
+  await win.getByRole('heading', { name: 'Diagnostics' }).waitFor()
+}
+
+/** Skips onboarding if shown and waits for the Lobby. */
+export async function toLobby(win: Page): Promise<void> {
+  await win.locator('.onboarding, .lobby').first().waitFor()
+  const skip = win.getByRole('button', { name: 'Skip setup' })
+  if (await skip.isVisible()) await skip.click()
+  await win.locator('.lobby').waitFor()
+}
+
 /** Waits until the pose model is ready and frames have been processed. */
 export async function waitForTracking(win: Page): Promise<void> {
   await win.locator('[data-panel="model"] h2 em', { hasText: 'ready' }).waitFor({ timeout: 60_000 })

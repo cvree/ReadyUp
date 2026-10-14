@@ -170,3 +170,50 @@ export function project(p: BodyPose, o: ProjectOptions): Landmark[] {
   for (const [i, off, isNear] of face) set(i, add(p.head, off), isNear ? o.nearVisibility : o.farVisibility, 0)
   return out
 }
+
+const rot = (v: V2, deg: number): V2 => {
+  const r = rad(deg)
+  return { x: v.x * Math.cos(r) - v.y * Math.sin(r), y: v.x * Math.sin(r) + v.y * Math.cos(r) }
+}
+
+/** Side-view squat. Facing left: knees travel forward (-x), hips sit back (+x). */
+export function squatPose(kneeDeg: number): BodyPose {
+  const ankle: V2 = { x: 1.2, y: 0.08 }
+  const flex = 180 - kneeDeg
+  const shinTilt = rad(flex * 0.45)
+  const knee: V2 = { x: ankle.x - 0.45 * Math.sin(shinTilt), y: ankle.y + 0.45 * Math.cos(shinTilt) }
+  const toAnkle = unit(sub(ankle, knee))
+  const hip = add(knee, mul(rot(toAnkle, kneeDeg), 0.45))
+  const lean = rad(flex * 0.4)
+  const up: V2 = { x: -Math.sin(lean), y: Math.cos(lean) }
+  const shoulder = add(hip, mul(up, 0.52))
+  const head = add(shoulder, mul(up, 0.22))
+  const elbow = add(shoulder, { x: -0.29, y: -0.02 })
+  const wrist = add(elbow, { x: -0.27, y: 0 })
+  return { head, shoulder, elbow, wrist, hip, knee, ankle, heel: add(ankle, { x: 0.05, y: -0.05 }), toe: add(ankle, { x: -0.12, y: -0.07 }) }
+}
+
+/** Standing, bending forward at the hips (as if picking something up) with soft knees. */
+export function bendPose(pitchDeg: number): BodyPose {
+  const base = squatPose(165)
+  const fwd: V2 = { x: -Math.sin(rad(pitchDeg)), y: Math.cos(rad(pitchDeg)) }
+  const shoulder = add(base.hip, mul(fwd, 0.52))
+  const head = add(shoulder, mul(fwd, 0.22))
+  const elbow = add(shoulder, { x: -0.02, y: -0.29 })
+  const wrist = add(elbow, { x: -0.02, y: -0.27 })
+  return { ...base, shoulder, head, elbow, wrist }
+}
+
+/** Side-view sit-up: lying on the back with knees bent; the torso rotates up about the hip. */
+export function situpPose(torsoDeg: number): BodyPose {
+  const hip: V2 = { x: 1.0, y: 0.1 }
+  const knee = add(hip, { x: 0.45 * Math.cos(rad(40)), y: 0.45 * Math.sin(rad(40)) })
+  const ankle: V2 = { x: knee.x + 0.3, y: 0.08 }
+  const dir: V2 = { x: -Math.cos(rad(torsoDeg)), y: Math.sin(rad(torsoDeg)) }
+  const shoulder = add(hip, mul(dir, 0.5))
+  const head = add(shoulder, mul(dir, 0.22))
+  const perp: V2 = { x: dir.y, y: -dir.x }
+  const elbow = add(lerp(hip, shoulder, 0.75), mul(perp, -0.08))
+  const wrist = add(lerp(hip, shoulder, 0.9), mul(perp, -0.1))
+  return { head, shoulder, elbow, wrist, hip, knee, ankle, heel: add(ankle, { x: 0.04, y: -0.02 }), toe: add(ankle, { x: 0.12, y: -0.06 }) }
+}

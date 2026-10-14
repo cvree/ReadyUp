@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { blockedRequests, launch, mainEvents, waitForTracking } from './app'
+import { blockedRequests, launch, mainEvents, openDiagnostics, waitForTracking } from './app'
 
 // B2, B3, B4, B5: the pose model loads from the bundle, runs in a worker, processes camera frames,
 // and nothing is requested from the network. Detection quality on real people is NOT tested here.
 test('model loads offline and processes frames from a (fake) camera with zero network requests', async () => {
   const { app, win, netlog } = await launch()
   try {
+    await openDiagnostics(win)
     await waitForTracking(win)
     // The synthetic camera shows no person, so the counter must report that honestly.
     await expect(win.getByTestId('hint')).toContainText('Step into view', { timeout: 30_000 })

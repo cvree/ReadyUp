@@ -18,6 +18,7 @@
       "@readyup/pose-types": ["packages/pose-types/src/index.ts"],
       "@readyup/exercise": ["packages/exercise/src/index.ts"],
       "@readyup/sim": ["packages/sim/src/index.ts"],
+      "@readyup/session": ["packages/session/src/index.ts"],
       "@shared/*": ["src/shared/*"]
     }
   }

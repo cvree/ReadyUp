@@ -45,7 +45,7 @@ describe('push-up counter: movements that must not count', () => {
     const r = runPreset('arm_curls')
     expect(r.count).toBe(0)
     expect(r.events.length).toBeGreaterThanOrEqual(4)
-    expect(new Set(r.events.map((e) => e.reason))).toEqual(new Set(['not_in_push_up_position']))
+    expect(new Set(r.events.map((e) => e.reason))).toEqual(new Set(['not_in_position']))
   })
 
   it('hips sagging through every rep: 0, explained as hips sagging', () => {
@@ -57,7 +57,7 @@ describe('push-up counter: movements that must not count', () => {
   it('knee push-ups: 0, with a message pointing to the Knee push-ups exercise', () => {
     const r = runPreset('knee_push_ups')
     expect(r.count).toBe(0)
-    expect(r.byReason['rejected:knee_push_up_detected']).toBe(10)
+    expect(r.byReason['rejected:other_exercise']).toBe(10)
     expect(r.events[0]?.message).toContain('Knee push-ups')
   })
 })

@@ -41,12 +41,32 @@ export class CameraService {
   state: CameraState = { status: 'idle', deviceId: null, label: null, width: null, height: null, frameRate: null, startMs: null, message: null }
   devices: CameraDevice[] = []
 
+  private video: HTMLVideoElement
+
   constructor(
-    private readonly video: HTMLVideoElement,
+    video: HTMLVideoElement,
     private readonly onState: (s: CameraState) => void,
     private readonly onDevices: (d: CameraDevice[]) => void
   ) {
+    this.video = video
     navigator.mediaDevices.addEventListener('devicechange', () => void this.handleDeviceChange())
+  }
+
+  /** Moves the live stream to another video element (each camera screen has its own). */
+  setVideo(video: HTMLVideoElement): void {
+    if (video === this.video) return
+    const stream = this.video.srcObject
+    this.video.srcObject = null
+    this.video = video
+    if (stream) {
+      video.srcObject = stream
+      video.muted = true
+      void video.play().catch(() => undefined)
+    }
+  }
+
+  get element(): HTMLVideoElement {
+    return this.video
   }
 
   async refreshDevices(): Promise<CameraDevice[]> {

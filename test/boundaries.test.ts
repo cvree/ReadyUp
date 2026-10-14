@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 // Pure packages must not depend on Electron, Node built-ins or the DOM, so counting logic can be
 // tested on recorded data and reused anywhere. (tsconfig.packages.json also compiles them with no
 // DOM or Node type libraries, and ESLint enforces the same rule.)
-const PURE = ['packages/pose-types/src', 'packages/exercise/src', 'packages/sim/src']
+const PURE = ['packages/pose-types/src', 'packages/exercise/src', 'packages/sim/src', 'packages/session/src']
 const FORBIDDEN_IMPORT = /from\s+['"](electron|node:[^'"]+|fs|path|os|child_process|crypto|react|react-dom)['"]/
 const FORBIDDEN_GLOBAL = /\b(window|document|navigator|process|require|Buffer|localStorage|fetch)\s*[.([]/
 

@@ -1,0 +1,75 @@
+# Checks every push. Windows installers are uploaded as run artifacts (not releases):
+# open the run on GitHub → Artifacts → ready-up-windows-installers.
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Checks and end-to-end (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run assets
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: End-to-end tests (Electron, fake camera, virtual display)
+        run: xvfb-run -a -s "-screen 0 1600x1000x24" npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-results
+          path: test-results
+          retention-days: 7
+
+  windows:
+    name: Windows end-to-end and installers
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run assets
+      - run: npm test
+      - run: npm run build
+      - name: End-to-end tests on Windows
+        run: npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-results
+          path: test-results
+          retention-days: 7
+      - name: Build unsigned installers (x64 and arm64)
+        run: |
+          npx electron-builder --win nsis --x64 --publish never
+          npx electron-builder --win nsis --arm64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ready-up-windows-installers
+          path: release/*.exe
+          retention-days: 30
+          if-no-files-found: error

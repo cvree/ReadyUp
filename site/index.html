@@ -154,6 +154,13 @@ h1, h2, h3 { margin: 0; font-family: var(--display); text-wrap: balance; }
 .demo .mini-launch { display: inline-flex; gap: 10px; align-items: center; background: var(--gold); color: var(--gold-ink); font: 650 16px/1 var(--body); padding: 14px 18px; border-radius: 8px; }
 @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
 
+/* ---------- real screens ---------- */
+.shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.shots figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.shots img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; background: var(--ink-2); }
+.shots figcaption { color: var(--mist); font-size: 15px; }
+@media (max-width: 760px) { .shots { grid-template-columns: 1fr; } }
+
 /* ---------- rep log ---------- */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
@@ -297,7 +304,7 @@ footer a { color: var(--paper); }
         </div>
       </div>
       <div class="win-foot">
-        <p>Design preview of the finished app. Times are sped up.</p>
+        <p>The ready check, sped up. The real screens are below.</p>
         <button class="replay" id="replay" type="button">Play the ready check</button>
       </div>
     </figure>
@@ -326,15 +333,32 @@ footer a { color: var(--paper); }
       <article class="step s2">
         <span class="n">2 · Move</span>
         <h3>Then move</h3>
-        <p>Do 10 push-ups in front of your webcam. Ready Up follows your elbows and body line on your own computer and counts each full rep.</p>
+        <p>Do 10 push-ups (or knee push-ups, squats or sit-ups) in front of your webcam. Ready Up follows your joints on your own computer and counts each full rep.</p>
         <div class="demo"><div class="numerals">7<small> / 10</small></div></div>
       </article>
       <article class="step s3">
         <span class="n">3 · Play</span>
         <h3>Now play</h3>
-        <p>Your game's Launch button unlocks. Pick the shortcut you already use for Overwatch 2, Marvel Rivals, or any other game, and you're in.</p>
+        <p>Your game's Launch button unlocks. Pick the shortcut you already use for Overwatch 2, Marvel Rivals, or any other game, or paste a Steam, Battle.net or Epic link, and you're in.</p>
         <div class="demo"><span class="mini-launch">Launch Marvel Rivals</span></div>
       </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= REAL SCREENS ================= -->
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">From the current build</div>
+      <h2 class="h2">The real app, not a mockup.</h2>
+      <p class="lead muted">Screens from today's development build, captured during an automated test run with test data.</p>
+    </div>
+    <div class="shots">
+      <figure><img src="shot-lobby.jpg" width="1200" height="771" loading="lazy" alt="Ready Up home screen: 'Next up: focus.' with a task field and the three ready-check slots."><figcaption>Home: the next step is always the biggest thing on screen.</figcaption></figure>
+      <figure><img src="shot-focus.jpg" width="1200" height="771" loading="lazy" alt="Focus screen with a large countdown timer and pause button."><figcaption>Focus: a calm, measured timer. Pauses don't count.</figcaption></figure>
+      <figure><img src="shot-ready.jpg" width="1200" height="771" loading="lazy" alt="Ready screen: READY headline, an honest summary and a Launch Overwatch 2 button."><figcaption>Ready: the lock-in moment, then Launch.</figcaption></figure>
+      <figure><img src="shot-history.jpg" width="1200" height="771" loading="lazy" alt="History screen with a week strip and recent sessions."><figcaption>History: one mark per day, no streak to protect.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -418,10 +442,10 @@ footer a { color: var(--paper); }
       <div class="card">
         <h3>Exercises</h3>
         <ul class="rows">
-          <li><span>Push-ups</span><span class="next">in testing</span></li>
-          <li><span>Knee push-ups</span><span>planned</span></li>
-          <li><span>Squats</span><span>planned</span></li>
-          <li><span>Sit-ups</span><span>planned · beta</span></li>
+          <li><span>Push-ups</span><span class="next">built · real-camera testing</span></li>
+          <li><span>Knee push-ups</span><span class="next">built · real-camera testing</span></li>
+          <li><span>Squats</span><span class="next">built · real-camera testing</span></li>
+          <li><span>Sit-ups</span><span class="next">built · beta</span></li>
         </ul>
       </div>
     </div>
@@ -434,16 +458,16 @@ footer a { color: var(--paper); }
     <div class="sec-head">
       <div class="eyebrow">Build status</div>
       <h2 class="h2">Built in the open, one milestone at a time.</h2>
-      <p class="lead muted">Downloads open once push-up counting has passed real-camera testing. Until then, you can follow every step on GitHub.</p>
+      <p class="lead muted">The app is built end to end. Rep counting now needs testing with real people and real cameras, so downloads open once that's done. Until then, you can follow every step on GitHub.</p>
     </div>
     <div class="track" role="list" aria-label="Milestones">
       <div class="ms done" role="listitem"><span class="k">1 · done</span><span class="v">Tracking proof of concept</span></div>
-      <div class="ms next" role="listitem"><span class="k">2 · next</span><span class="v">Setup and main screens</span></div>
-      <div class="ms" role="listitem"><span class="k">3</span><span class="v">Dependable push-ups</span></div>
-      <div class="ms" role="listitem"><span class="k">4</span><span class="v">Timer, games, history</span></div>
-      <div class="ms" role="listitem"><span class="k">5</span><span class="v">More exercises</span></div>
-      <div class="ms" role="listitem"><span class="k">6</span><span class="v">Diagnostics and polish</span></div>
-      <div class="ms goal" role="listitem"><span class="k">7 · goal</span><span class="v">Windows installer</span></div>
+      <div class="ms done" role="listitem"><span class="k">2 · built</span><span class="v">Setup and main screens</span></div>
+      <div class="ms next" role="listitem"><span class="k">3 · testing</span><span class="v">Dependable push-ups</span></div>
+      <div class="ms done" role="listitem"><span class="k">4 · built</span><span class="v">Timer, games, history</span></div>
+      <div class="ms next" role="listitem"><span class="k">5 · testing</span><span class="v">More exercises</span></div>
+      <div class="ms done" role="listitem"><span class="k">6 · built</span><span class="v">Diagnostics and polish</span></div>
+      <div class="ms goal" role="listitem"><span class="k">7 · goal</span><span class="v">Public Windows installer</span></div>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="https://github.com/cvree/ReadyUp" target="_blank" rel="noopener">Follow on GitHub</a>

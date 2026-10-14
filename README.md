@@ -2,7 +2,9 @@
 
 Study, move, then play. A Windows desktop app that turns a study session and a short camera-counted exercise set into a "ready check" before gaming. Everything runs locally; video never leaves the computer and is never written to disk.
 
-**Status: Milestone 1 (proof of concept).** The app currently opens straight into a Diagnostics screen for push-up counting. Counting logic is tested on synthetic movement only; accuracy on real people is not yet measured. See [docs/PLAN.md](docs/PLAN.md) and [docs/milestones/M1.md](docs/milestones/M1.md).
+**Status: full app built, in real-camera testing.** First-run setup, the ready check (focus → move → play), camera setup, push-ups, knee push-ups, squats and sit-ups (Beta), overrides, game launching, history and Diagnostics are built and covered by 122 unit tests and 19 end-to-end tests. Rep counting is tested on synthetic movement only; accuracy on real people is being measured now. See [docs/PLAN.md](docs/PLAN.md), [docs/milestones/M1.md](docs/milestones/M1.md) and [docs/milestones/M2-M7.md](docs/milestones/M2-M7.md).
+
+**Installers:** every push runs CI on GitHub; the unsigned Windows installers are attached to each run as the `ready-up-windows-installers` artifact (Actions → CI → latest run).
 
 ## Landing page
 
@@ -24,6 +26,7 @@ The public site lives in `site/` (plain HTML, self-hosted fonts, no trackers) an
 | `npm test` | Repository media check + unit and synthetic-movement tests (Vitest) |
 | `npm run test:e2e` | Build, then drive the real Electron app with Playwright and Chromium's fake camera |
 | `npm run test:e2e:linux` | Same, under `xvfb-run` for Linux machines without a display |
+| CI (`.github/workflows/ci.yml`) | Linux checks + end-to-end, Windows end-to-end, unsigned installers as artifacts |
 | `npm run dist:win` | Build unsigned Windows installers (x64 and arm64) into `release/` |
 | `npm run assets` | Fetch and hash-check the bundled MediaPipe runtime and pose models (runs automatically before `dev` and `build`) |
 
@@ -35,9 +38,10 @@ Building Windows installers on Linux needs Wine (32-bit and 64-bit), because NSI
 packages/pose-types   33-landmark pose types (no DOM, no Node)
 packages/exercise     geometry, smoothing, side selection, position checks, rep state machine
 packages/sim          synthetic skeleton generator and named movement presets
+packages/session      routine, measured focus timer, sessions, history records, weekly stats
 src/main              Electron main process: security, app:// protocol, settings, logs, system info
 src/preload           the only bridge between UI and main (typed, minimal)
-src/renderer          camera service, pose worker (MediaPipe), engine, Diagnostics UI
+src/renderer          screens, session controller, camera service, pose worker (MediaPipe), engine
 e2e                   end-to-end tests against the built app
 site                  landing page (GitHub Pages)
 scripts               asset preparation, notices, repository checks, icon

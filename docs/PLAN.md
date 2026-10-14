@@ -1,6 +1,6 @@
 # Ready Up: Build Plan
 
-Version 2.1 · 13 October 2026 · **Milestone 1 implemented and awaiting your real-camera test.** Changes made during M1 are listed in `docs/milestones/M1.md`.
+Version 2.2 · 14 October 2026 · **Milestones 1–7 built and automatically tested. Real-camera validation is next (your scripts in `docs/milestones/M2-M7.md`).** Changes made during building are listed in `docs/milestones/M1.md` and `docs/milestones/M2-M7.md`.
 Visual direction (approved): `docs/design/visual-direction.html`.
 
 ---

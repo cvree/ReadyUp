@@ -13,9 +13,19 @@ test('a crash mid-focus resumes paused, counting only time up to the last save',
   await first.win.keyboard.press('Enter')
   await expect(first.win.locator('.timer')).toBeVisible()
   await first.win.waitForTimeout(6500) // at least one periodic save
-  first.app.process().kill('SIGKILL')
+  const proc = first.app.process()
+  const exited = new Promise((resolve) => proc.once('exit', resolve))
+  proc.kill('SIGKILL')
+  await exited
 
-  const second = await launch({ userData: first.userData })
+  // On Windows the killed app's helper processes take a moment to exit and release the profile;
+  // until then a new instance yields to the single-instance lock. Retry briefly.
+  let second: Awaited<ReturnType<typeof launch>> | null = null
+  for (let attempt = 0; attempt < 5 && !second; attempt++) {
+    await new Promise((r) => setTimeout(r, 1500))
+    second = await launch({ userData: first.userData }).catch(() => null)
+  }
+  if (!second) throw new Error('Ready Up did not restart after the crash')
   try {
     await expect(second.win.getByRole('heading', { name: 'Pick up where you left off.' })).toBeVisible()
     await expect(second.win.getByText(/closed unexpectedly, so only time up to its last save was counted/)).toBeVisible()

@@ -4,6 +4,10 @@ Study, move, then play. A Windows desktop app that turns a study session and a s
 
 **Status: Milestone 1 (proof of concept).** The app currently opens straight into a Diagnostics screen for push-up counting. Counting logic is tested on synthetic movement only; accuracy on real people is not yet measured. See [docs/PLAN.md](docs/PLAN.md) and [docs/milestones/M1.md](docs/milestones/M1.md).
 
+## Landing page
+
+The public site lives in `site/` (plain HTML, self-hosted fonts, no trackers) and deploys to GitHub Pages at https://cvree.github.io/ReadyUp/ through `.github/workflows/pages.yml` whenever `site/` changes on `main`.
+
 ## Requirements
 
 - Node.js 22 (see `.nvmrc`), npm 10
@@ -35,6 +39,7 @@ src/main              Electron main process: security, app:// protocol, settings
 src/preload           the only bridge between UI and main (typed, minimal)
 src/renderer          camera service, pose worker (MediaPipe), engine, Diagnostics UI
 e2e                   end-to-end tests against the built app
+site                  landing page (GitHub Pages)
 scripts               asset preparation, notices, repository checks, icon
 ```
 

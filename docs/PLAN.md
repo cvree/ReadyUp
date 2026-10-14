@@ -275,6 +275,8 @@ A commit (pushed to the project branch, see §0) at the end of each milestone, t
 
 **v0.1 = milestones 1–4.**
 
+**End goal: the app plus a landing page.** The landing page (`site/`, deployed to GitHub Pages) is maintained alongside the milestones. It describes only what exists or is planned, labels design previews as previews, and offers downloads only once an installer has passed real-camera testing (M7, or earlier if you approve a preview build).
+
 ---
 
 ## 8. Verification

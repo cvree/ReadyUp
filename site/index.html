@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ready Up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Ready Up is a Windows app that turns the moment before you play into a ready check: focus on your study, do ten camera-counted push-ups, and your game's Launch button lights up. Everything runs on your computer.">
+<meta property="og:title" content="Ready Up: earn your game">
+<meta property="og:description" content="Study, move, then play. A ready check for real life, built in the open.">
+<meta name="theme-color" content="#0C0F15">
+<link rel="icon" href="icon.png">
+<style>
+/* Layout: one left-aligned column (max 1180px) of full-width bands; the hero pairs the headline
+   with a live app window that plays the ready check once. Single dark look, by design. */
+@font-face { font-family: "Anybody"; src: url("fonts/anybody.woff2") format("woff2"); font-weight: 100 900; font-stretch: 50% 150%; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("fonts/instrument-sans.woff2") format("woff2"); font-weight: 400 700; font-stretch: 75% 100%; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/plex-mono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+
+:root {
+  --ink: #0C0F15;      /* base, blue-black */
+  --ink-2: #121722;    /* raised */
+  --slate: #1A2130;    /* surfaces */
+  --line: #2A3345;     /* hairlines */
+  --mist: #97A1B3;     /* secondary text */
+  --paper: #EEEAE2;    /* primary text */
+  --moon: #A9B8F5;     /* focus */
+  --ember: #F39A6B;    /* move */
+  --gold: #EFCB72;     /* ready */
+  --gold-ink: #1D1607;
+  --ok: #8FD3A8;
+  --warn: #F0B566;
+  --display: "Anybody", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--ink); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--ink); color: var(--paper); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { max-width: 100%; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; font-family: var(--display); text-wrap: balance; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.band { padding-block: clamp(64px, 10vw, 120px); border-top: 1px solid var(--line); }
+.eyebrow { font: 700 12px/1 var(--display); font-stretch: 70%; letter-spacing: .22em; text-transform: uppercase; color: var(--mist); }
+.eyebrow b { color: var(--gold); font-weight: 700; }
+.h2 { font-size: clamp(32px, 5vw, 54px); font-weight: 850; font-stretch: 125%; line-height: 1.02; letter-spacing: -.01em; }
+.lead { font-size: clamp(18px, 2vw, 21px); line-height: 1.55; color: var(--paper); max-width: 58ch; }
+.muted { color: var(--mist); }
+.sec-head { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin-bottom: clamp(36px, 5vw, 56px); }
+
+/* ---------- buttons ---------- */
+.btn { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 650 16px/1 var(--body); padding: 15px 20px; border-radius: 9px; border: 1px solid var(--line); background: var(--slate); color: var(--paper); cursor: pointer; }
+.btn:hover { border-color: var(--mist); }
+.btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn svg { width: 18px; height: 18px; }
+
+/* ---------- nav ---------- */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in oklab, var(--ink) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; gap: 28px; padding-block: 14px; }
+.wordmark { font: 900 22px/1 var(--display); font-stretch: 150%; letter-spacing: -.01em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.wordmark span { color: var(--gold); }
+.wordmark img { width: 28px; height: 28px; border-radius: 7px; }
+.nav ul { list-style: none; display: flex; gap: 24px; margin: 0 0 0 auto; padding: 0; }
+.nav ul a { text-decoration: none; color: var(--mist); font-size: 15px; }
+.nav ul a:hover { color: var(--paper); }
+.nav .btn { padding: 10px 14px; font-size: 14px; }
+@media (max-width: 860px) { .nav ul { display: none; } .nav .btn { margin-left: auto; } }
+
+/* ---------- hero ---------- */
+.hero { padding-block: clamp(48px, 8vw, 96px) clamp(64px, 9vw, 112px); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.hero-copy { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.headline { font-size: clamp(52px, 6.4vw, 94px); font-weight: 900; font-stretch: 150%; line-height: .88; letter-spacing: -.025em; }
+.headline em { font-style: normal; color: var(--gold); }
+.tagline { font: 600 15px/1.4 var(--mono); color: var(--mist); }
+.ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.status-line { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 13px/1 var(--body); color: var(--mist); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; }
+.chip.live { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 40%, var(--line)); }
+@media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; } }
+
+/* ---------- app window (all sizes in container units so it scales) ---------- */
+.win { container-type: inline-size; width: 100%; max-width: 100%; aspect-ratio: 16 / 10.4; background: var(--ink); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 50px 100px -40px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.02) inset; position: relative; }
+.chrome { height: 4.6cqw; display: flex; align-items: center; gap: 1cqw; padding: 0 2.2cqw; background: var(--ink-2); border-bottom: 1px solid var(--line); }
+.chrome i { width: 1.2cqw; height: 1.2cqw; border-radius: 50%; background: var(--line); }
+.chrome em { margin-left: auto; font: normal 700 1.5cqw/1 var(--display); font-stretch: 70%; letter-spacing: .22em; color: var(--mist); }
+.screen { position: absolute; inset: 4.6cqw 0 0 0; padding: 4.4cqw 5.4cqw; display: flex; flex-direction: column; gap: 3.6cqw; }
+.rc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1cqw; }
+.slot { --t: var(--slate); position: relative; background: var(--slate); padding: 2cqw 3cqw 2cqw 3.4cqw; clip-path: polygon(2cqw 0, 100% 0, calc(100% - 2cqw) 100%, 0 100%); display: flex; flex-direction: column; gap: .8cqw; overflow: hidden; }
+.slot .k { font: 700 1.3cqw/1 var(--display); font-stretch: 70%; letter-spacing: .22em; text-transform: uppercase; color: var(--mist); }
+.slot .v { font: 800 2.7cqw/1 var(--display); font-stretch: 125%; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.slot.focus { --t: var(--moon); } .slot.move { --t: var(--ember); }
+.slot .fill { position: absolute; left: 0; bottom: 0; height: .5cqw; width: var(--p, 0%); background: var(--t); }
+.slot.done { background: color-mix(in oklab, var(--t) 26%, var(--slate)); }
+.slot.done .k, .slot.active .k { color: var(--t); }
+.slot.locked .v { color: var(--mist); }
+.slot.ready { background: var(--gold); }
+.slot.ready .k, .slot.ready .v { color: var(--gold-ink); }
+.stage { position: relative; flex: 1; min-height: 0; }
+.panel { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 2.4cqw; opacity: 0; visibility: hidden; transition: opacity .25s ease; }
+.win[data-stage="focus"] .p-focus, .win[data-stage="move"] .p-move, .win[data-stage="ready"] .p-ready { opacity: 1; visibility: visible; }
+.p-label { font: 700 1.4cqw/1 var(--display); font-stretch: 70%; letter-spacing: .22em; text-transform: uppercase; }
+.p-focus .p-label { color: var(--moon); } .p-move .p-label { color: var(--ember); }
+.p-task { font: 600 2.4cqw/1.2 var(--body); }
+.big { font: 900 15cqw/.84 var(--display); font-stretch: 150%; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.big small { font-size: .32em; color: var(--mist); font-stretch: 120%; letter-spacing: 0; }
+.say { font: 600 2.1cqw/1.3 var(--body); border-left: .4cqw solid var(--ember); padding-left: 1.6cqw; }
+.readyword { font: 900 13.5cqw/.82 var(--display); font-stretch: 150%; letter-spacing: -.02em; }
+.readyword em { font-style: normal; color: var(--gold); }
+.summary { display: flex; gap: 4cqw; font: 1.6cqw/1.35 var(--body); color: var(--mist); flex-wrap: wrap; }
+.summary b { display: block; font: 800 2.6cqw/1.1 var(--display); font-stretch: 120%; color: var(--paper); }
+.launch { align-self: flex-start; position: relative; overflow: hidden; display: inline-flex; gap: 1.4cqw; align-items: center; background: var(--gold); color: var(--gold-ink); font: 650 2.2cqw/1 var(--body); padding: 2cqw 3cqw; border-radius: .8cqw; }
+.launch kbd { font: 500 1.3cqw/1 var(--mono); border: 1px solid currentColor; border-radius: .4cqw; padding: .4cqw .6cqw; opacity: .7; }
+.launch::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.6), transparent); transform: skewX(-18deg); }
+.win.lockin .launch::after { animation: sweep 900ms 350ms cubic-bezier(.2,.7,.2,1) both; }
+.win.lockin .readyword { animation: widen 650ms cubic-bezier(.2,.8,.2,1) both; }
+.win.lockin .slot { animation: snap 380ms cubic-bezier(.2,.9,.3,1.3) both; }
+.win.lockin .slot:nth-child(2) { animation-delay: 60ms; } .win.lockin .slot:nth-child(3) { animation-delay: 120ms; }
+@keyframes sweep { to { left: 120%; } }
+@keyframes widen { from { font-stretch: 50%; opacity: 0; letter-spacing: .08em; } to { font-stretch: 150%; opacity: 1; letter-spacing: -.02em; } }
+@keyframes snap { from { transform: translateY(1cqw) scale(.97); opacity: .4; } to { transform: none; opacity: 1; } }
+.win-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 14px; }
+.win-foot p { font-size: 13px; color: var(--mist); }
+.replay { background: none; border: 1px solid var(--line); color: var(--mist); border-radius: 8px; padding: 8px 12px; font: 600 13px/1 var(--body); cursor: pointer; }
+.replay:hover { color: var(--paper); border-color: var(--mist); }
+@media (prefers-reduced-motion: reduce) {
+  .panel { transition: none; }
+  .win.lockin .launch::after, .win.lockin .readyword, .win.lockin .slot { animation: none; }
+}
+
+/* ---------- tagline band ---------- */
+.motto { padding-block: clamp(40px, 6vw, 64px); border-top: 1px solid var(--line); }
+.motto p { font: 850 clamp(26px, 4.4vw, 50px)/1.05 var(--display); font-stretch: 130%; letter-spacing: -.01em; text-wrap: balance; }
+.motto span { color: var(--mist); }
+
+/* ---------- steps ---------- */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.step { border: 1px solid var(--line); background: var(--ink-2); border-radius: 14px; padding: 26px; display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden; min-width: 0; }
+.step::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--t); }
+.step.s1 { --t: var(--moon); } .step.s2 { --t: var(--ember); } .step.s3 { --t: var(--gold); }
+.step .n { font: 600 13px/1 var(--mono); color: var(--t); }
+.step h3 { font-size: 30px; font-weight: 850; font-stretch: 125%; }
+.step p { color: var(--mist); font-size: 16px; }
+.step .demo { margin-top: auto; border-top: 1px solid var(--line); padding-top: 18px; min-height: 92px; display: flex; align-items: center; }
+.demo .numerals { font: 900 50px/1 var(--display); font-stretch: 150%; font-variant-numeric: tabular-nums; }
+.demo .numerals small { font-size: 20px; color: var(--mist); }
+.demo .mini-launch { display: inline-flex; gap: 10px; align-items: center; background: var(--gold); color: var(--gold-ink); font: 650 16px/1 var(--body); padding: 14px 18px; border-radius: 8px; }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+
+/* ---------- rep log ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+.points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.points li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; color: var(--paper); }
+.points li::before { content: ""; width: 10px; height: 10px; margin-top: 9px; background: var(--gold); clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%); }
+.replog { border: 1px solid var(--line); border-radius: 14px; background: var(--ink-2); padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
+.replog .head { display: flex; justify-content: space-between; font: 700 11px/1 var(--display); font-stretch: 70%; letter-spacing: .22em; text-transform: uppercase; color: var(--mist); padding: 2px 4px 6px; }
+.entry { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 2px 14px; background: var(--ink); border-radius: 9px; padding: 12px 14px; }
+.entry .tag { font: 500 13px/1.4 var(--mono); }
+.entry.c .tag { color: var(--ok); } .entry.r .tag { color: var(--warn); } .entry.v .tag { color: #F08A7E; }
+.entry .meta { grid-column: 2; font: 400 12.5px/1.4 var(--mono); color: var(--mist); }
+
+/* ---------- honesty ---------- */
+.truths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.truth { border: 1px solid var(--line); border-radius: 14px; padding: 28px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.truth h3 { font-size: 24px; font-weight: 800; font-stretch: 115%; line-height: 1.15; }
+.truth p { color: var(--mist); }
+@media (max-width: 760px) { .truths { grid-template-columns: 1fr; } }
+
+/* ---------- privacy ---------- */
+.privacy { background: var(--ink-2); }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.fact { padding: 26px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--line); min-width: 0; }
+.fact:last-child { border-right: 0; }
+.fact b { font: 850 22px/1.15 var(--display); font-stretch: 115%; }
+.fact p { color: var(--mist); font-size: 15.5px; }
+.proof { margin-top: 22px; font: 400 14px/1.6 var(--mono); color: var(--mist); max-width: 80ch; }
+.proof b { color: var(--ok); font-weight: 500; }
+@media (max-width: 960px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fact:nth-child(2) { border-right: 0; } .fact:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+@media (max-width: 560px) { .facts { grid-template-columns: 1fr; } .fact { border-right: 0; border-bottom: 1px solid var(--line); } .fact:last-child { border-bottom: 0; } }
+
+/* ---------- compat + exercises ---------- */
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+.card { border: 1px solid var(--line); border-radius: 14px; padding: 28px; background: var(--ink-2); display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.card h3 { font-size: 24px; font-weight: 800; font-stretch: 115%; }
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rows li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.rows li:first-child { border-top: 0; padding-top: 0; }
+.rows li span:last-child { font: 500 13px/1.3 var(--mono); color: var(--mist); text-align: right; }
+.rows li span.ok { color: var(--ok); } .rows li span.next { color: var(--ember); }
+
+/* ---------- build status ---------- */
+.track { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 26px; }
+.ms { --t: var(--slate); background: var(--slate); padding: 16px 18px 16px 20px; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ms .k { font: 600 12px/1 var(--mono); color: var(--mist); }
+.ms .v { font: 700 14px/1.25 var(--body); }
+.ms.done { background: color-mix(in oklab, var(--ok) 22%, var(--slate)); }
+.ms.done .k { color: var(--ok); }
+.ms.next { background: color-mix(in oklab, var(--ember) 22%, var(--slate)); }
+.ms.next .k { color: var(--ember); }
+.ms.goal { background: var(--gold); } .ms.goal .k, .ms.goal .v { color: var(--gold-ink); }
+@media (max-width: 960px) { .track { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cta-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- faq ---------- */
+.faq { display: flex; flex-direction: column; border-top: 1px solid var(--line); max-width: 860px; }
+details { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; list-style: none; padding: 22px 0; display: flex; justify-content: space-between; gap: 20px; font: 700 19px/1.3 var(--body); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font: 400 26px/1 var(--mono); color: var(--mist); }
+details[open] summary::after { content: "−"; }
+details p { padding: 0 0 22px; color: var(--mist); max-width: 68ch; }
+
+/* ---------- footer ---------- */
+footer { border-top: 1px solid var(--line); padding-block: 40px calc(40px + env(safe-area-inset-bottom, 0px)); color: var(--mist); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 32px; justify-content: space-between; align-items: center; }
+footer a { color: var(--paper); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="wordmark" href="#top" aria-label="Ready Up home"><img src="icon.png" alt="">READY<span>UP</span></a>
+    <ul>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#honest">Honest by design</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#status">Build status</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <a class="btn" href="https://github.com/cvree/ReadyUp" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="eyebrow"><b>Ready Up</b> &nbsp;·&nbsp; for Windows &nbsp;·&nbsp; early preview</div>
+      <h1 class="headline">Earn your <em>game.</em></h1>
+      <p class="lead">Ready Up turns the moment before you play into a ready check. Focus on your study, do ten push-ups counted by your webcam, and your game's Launch button lights up.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#status">Get the early preview</a>
+        <a class="btn" href="#how">See how it works</a>
+      </div>
+      <div class="status-line">
+        <span class="chip live">Push-up counting in testing</span>
+        <span class="chip">Runs fully offline</span>
+        <span class="chip">No account</span>
+      </div>
+    </div>
+
+    <figure style="margin:0; min-width:0">
+      <div class="win lockin" id="demo" data-stage="ready" role="img" aria-label="Ready Up app: focus timer finished, ten push-ups counted, the Launch Overwatch 2 button is unlocked">
+        <div class="chrome"><i></i><i></i><i></i><em>READY UP</em></div>
+        <div class="screen">
+          <div class="rc">
+            <div class="slot focus done" id="s-focus"><span class="fill" style="--p:100%"></span><div class="k">✓ Focus</div><div class="v" id="v-focus">25:00</div></div>
+            <div class="slot move done" id="s-move"><span class="fill" style="--p:100%"></span><div class="k">✓ Move</div><div class="v" id="v-move">10 push-ups</div></div>
+            <div class="slot ready" id="s-play"><div class="k">✓ Play</div><div class="v" id="v-play">Unlocked</div></div>
+          </div>
+          <div class="stage">
+            <div class="panel p-focus">
+              <div class="p-label">Focusing on</div>
+              <div class="p-task">Chapter 4 · eigenvalue problems</div>
+              <div class="big" id="timer">25:00</div>
+            </div>
+            <div class="panel p-move">
+              <div class="p-label">Push-ups · camera-counted</div>
+              <div class="big"><span id="reps">0</span><small> / 10</small></div>
+              <div class="say" id="say">Ready. Lower until your elbows reach 100°.</div>
+            </div>
+            <div class="panel p-ready">
+              <div class="readyword">READY<em>.</em></div>
+              <div class="summary">
+                <div><b>25:00</b>focused</div>
+                <div><b>Chapter 4</b>you marked it done</div>
+                <div><b>10</b>push-ups</div>
+              </div>
+              <div class="launch">Launch Overwatch 2 <kbd>Enter</kbd></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="win-foot">
+        <p>Design preview of the finished app. Times are sped up.</p>
+        <button class="replay" id="replay" type="button">Play the ready check</button>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<section class="motto">
+  <div class="wrap"><p>Get ready, be ready. <span>Level up in game and out.</span></p></div>
+</section>
+
+<!-- ================= HOW ================= -->
+<section class="band" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">How it works</div>
+      <h2 class="h2">Three slots. Fill them, then play.</h2>
+      <p class="lead muted">Every session is a ready check, like the one before a match. The next step is always the biggest thing on screen.</p>
+    </div>
+    <div class="steps">
+      <article class="step s1">
+        <span class="n">1 · Focus</span>
+        <h3>Study first</h3>
+        <p>Name what you're working on and start a focus timer. 25 minutes by default, or whatever suits you. Ready Up measures the time; you say whether you finished.</p>
+        <div class="demo"><div class="numerals">18:42</div></div>
+      </article>
+      <article class="step s2">
+        <span class="n">2 · Move</span>
+        <h3>Then move</h3>
+        <p>Do 10 push-ups in front of your webcam. Ready Up follows your elbows and body line on your own computer and counts each full rep.</p>
+        <div class="demo"><div class="numerals">7<small> / 10</small></div></div>
+      </article>
+      <article class="step s3">
+        <span class="n">3 · Play</span>
+        <h3>Now play</h3>
+        <p>Your game's Launch button unlocks. Pick the shortcut you already use for Overwatch 2, Marvel Rivals, or any other game, and you're in.</p>
+        <div class="demo"><span class="mini-launch">Launch Marvel Rivals</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= EXPLAINED ================= -->
+<section class="band">
+  <div class="wrap split">
+    <div style="display:flex; flex-direction:column; gap:22px; min-width:0">
+      <div class="eyebrow">Every rep explained</div>
+      <h2 class="h2">If a rep doesn't count, you'll know why.</h2>
+      <p class="lead muted">No mystery counters. Ready Up tells you what to change, in plain words, and keeps going.</p>
+      <ul class="points">
+        <li>A push-up counts when you go from arms straight, down to about 100° at the elbow, and back up.</li>
+        <li>Half reps, sagging hips and arm curls while standing don't count, and each gets its own reason.</li>
+        <li>Lose sight of the camera mid-rep? That one rep is skipped, never guessed.</li>
+        <li>The camera got it wrong? Tap +1 or −1. Corrections are kept separate from camera counts.</li>
+      </ul>
+    </div>
+    <div class="replog" aria-label="Example rep log">
+      <div class="head"><span>Rep log</span><span>example</span></div>
+      <div class="entry c"><span class="tag">#4</span><span>Counted</span><span class="meta">min 91° · 1.6 s</span></div>
+      <div class="entry r"><span class="tag">not yet</span><span>Go a little lower. Your elbows reached 118°; aim for 100° or less.</span><span class="meta">min 118° · 1.1 s</span></div>
+      <div class="entry c"><span class="tag">#3</span><span>Counted</span><span class="meta">min 88° · 1.5 s</span></div>
+      <div class="entry r"><span class="tag">not yet</span><span>Lift your hips a little so your body makes a straight line.</span><span class="meta">body line 141°</span></div>
+      <div class="entry v"><span class="tag">skipped</span><span>I lost sight of your wrist mid-rep, so that one didn't count. Try turning more side-on to the camera.</span><span class="meta">tracking lost · 420 ms</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HONEST ================= -->
+<section class="band" id="honest">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Honest by design</div>
+      <h2 class="h2">A promise to yourself, kept in plain sight.</h2>
+    </div>
+    <div class="truths">
+      <div class="truth"><h3>Focus time is measured. The studying is yours to confirm.</h3><p>Ready Up times your session and leaves out pauses. Whether you finished your task is your call, and it's recorded as your answer.</p></div>
+      <div class="truth"><h3>The Launch button is a commitment, not a lock.</h3><p>Ready Up doesn't block your game, your launcher or your desktop shortcut. It gives you one good reason to wait.</p></div>
+      <div class="truth"><h3>Hurt, or camera trouble? Use the override.</h3><p>For injury, accessibility needs or a camera that won't cooperate, there's a clearly labeled override. It still unlocks your game and is noted as an override, without a guilt trip.</p></div>
+      <div class="truth"><h3>A launch is a game session, not a match.</h3><p>Ready Up records that it opened your game. It can't see your matches, so you can log those yourself if you want to.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRIVACY ================= -->
+<section class="band privacy" id="privacy">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Privacy</div>
+      <h2 class="h2">Your camera stays on your computer.</h2>
+      <p class="lead muted">The pose tracker runs locally. Ready Up looks at where your joints are, counts the rep, and lets the picture go.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>No video saved</b><p>Camera frames stay in memory and are discarded after tracking.</p></div>
+      <div class="fact"><b>Nothing uploaded</b><p>The app makes no network requests. It works with Wi-Fi off.</p></div>
+      <div class="fact"><b>No account</b><p>No sign-up, no email, no profile. Your history lives in a file on your PC.</p></div>
+      <div class="fact"><b>No analytics</b><p>No tracking, no telemetry, no ads. Logs leave only if you export them.</p></div>
+    </div>
+    <p class="proof"><b>Checked, not just promised:</b> the app's automated tests read Chromium's own network log and fail if Ready Up contacts any server. They also fail if any image or video file appears in the app's data folder after a session.</p>
+  </div>
+</section>
+
+<!-- ================= COMPAT ================= -->
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">What you need</div>
+      <h2 class="h2">A Windows PC and a camera. That's it.</h2>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h3>Setup</h3>
+        <ul class="rows">
+          <li><span>Windows 10 or 11</span><span>x64 or ARM</span></li>
+          <li><span>Any webcam</span><span>built-in or USB</span></li>
+          <li><span>Or your phone</span><span>if Windows sees it as a webcam</span></li>
+          <li><span>Your games</span><span>any shortcut or launcher link</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Exercises</h3>
+        <ul class="rows">
+          <li><span>Push-ups</span><span class="next">in testing</span></li>
+          <li><span>Knee push-ups</span><span>planned</span></li>
+          <li><span>Squats</span><span>planned</span></li>
+          <li><span>Sit-ups</span><span>planned · beta</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATUS ================= -->
+<section class="band" id="status">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Build status</div>
+      <h2 class="h2">Built in the open, one milestone at a time.</h2>
+      <p class="lead muted">Downloads open once push-up counting has passed real-camera testing. Until then, you can follow every step on GitHub.</p>
+    </div>
+    <div class="track" role="list" aria-label="Milestones">
+      <div class="ms done" role="listitem"><span class="k">1 · done</span><span class="v">Tracking proof of concept</span></div>
+      <div class="ms next" role="listitem"><span class="k">2 · next</span><span class="v">Setup and main screens</span></div>
+      <div class="ms" role="listitem"><span class="k">3</span><span class="v">Dependable push-ups</span></div>
+      <div class="ms" role="listitem"><span class="k">4</span><span class="v">Timer, games, history</span></div>
+      <div class="ms" role="listitem"><span class="k">5</span><span class="v">More exercises</span></div>
+      <div class="ms" role="listitem"><span class="k">6</span><span class="v">Diagnostics and polish</span></div>
+      <div class="ms goal" role="listitem"><span class="k">7 · goal</span><span class="v">Windows installer</span></div>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/cvree/ReadyUp" target="_blank" rel="noopener">Follow on GitHub</a>
+      <a class="btn" href="https://github.com/cvree/ReadyUp/blob/main/docs/milestones/M1.md" target="_blank" rel="noopener">Read the milestone 1 report</a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FAQ ================= -->
+<section class="band" id="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Questions</div>
+      <h2 class="h2">Good to know</h2>
+    </div>
+    <div class="faq">
+      <details><summary>Does Ready Up stop me from opening my game?</summary><p>No. It unlocks its own Launch button when your ready check is complete. Your game, launcher and shortcuts keep working as usual. Ready Up is a commitment you make to yourself.</p></details>
+      <details><summary>Is my camera video uploaded or saved?</summary><p>No. Frames are processed in memory on your computer and discarded. Nothing is uploaded, and the app makes no network connections at all.</p></details>
+      <details><summary>Can I use my phone as the camera?</summary><p>Yes, if Windows lists it as a webcam. With an iPhone that means a webcam app on the phone and PC. Some Android phones can act as a USB webcam with no extra app.</p></details>
+      <details><summary>What if I'm injured or can't do push-ups today?</summary><p>Use the override and pick a reason. You can do a different exercise, enter your own count, or skip the movement for today. It's recorded as an override, and Launch still unlocks.</p></details>
+      <details><summary>How accurate is the push-up counter?</summary><p>It's in testing. The counting logic passes a suite of simulated movements, including half reps and arm curls that must not count, but accuracy on real people is being measured now. We'll publish the results before calling it dependable.</p></details>
+      <details><summary>When can I download it?</summary><p>After real-camera testing of push-ups and the core screens are done. Follow the project on GitHub to see each milestone as it lands.</p></details>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><strong style="color:var(--paper)">Ready Up</strong> · Study, move, then play.</span>
+    <span>Built in the open on <a href="https://github.com/cvree/ReadyUp" target="_blank" rel="noopener">GitHub</a> · Type: Anybody, Instrument Sans, IBM Plex Mono (SIL Open Font License)</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var win = document.getElementById('demo');
+  var btn = document.getElementById('replay');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var timers = [];
+  function $(id) { return document.getElementById(id); }
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function set(slot, cls, fill) {
+    var el = $(slot);
+    el.className = 'slot ' + (slot === 's-focus' ? 'focus ' : slot === 's-move' ? 'move ' : '') + cls;
+    var f = el.querySelector('.fill');
+    if (f) f.style.setProperty('--p', fill + '%');
+  }
+  function label(slot, text) { $(slot).querySelector('.k').textContent = text; }
+  function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r; }
+  var says = ['Ready. Lower until your elbows reach 100°.', 'Good depth. Now push all the way up.', 'Nice rep.'];
+
+  function play() {
+    timers.forEach(clearTimeout); timers = [];
+    win.classList.remove('lockin');
+    if (reduce.matches) { finish(false); return; }
+    // Focus: 25:00 runs down quickly.
+    win.dataset.stage = 'focus';
+    set('s-focus', 'active', 0); label('s-focus', 'Focus'); $('v-focus').textContent = 'In progress';
+    set('s-move', 'locked', 0); label('s-move', 'Move'); $('v-move').textContent = '10 push-ups';
+    set('s-play', 'locked', 0); label('s-play', 'Play'); $('v-play').textContent = 'Overwatch 2';
+    var total = 1500, steps = 30;
+    for (var i = 0; i <= steps; i++) (function (i) {
+      later(function () {
+        $('timer').textContent = fmt(Math.round(total * (1 - i / steps)));
+        set('s-focus', 'active', (i / steps) * 100);
+      }, i * 45);
+    })(i);
+    later(function () {
+      set('s-focus', 'done', 100); label('s-focus', '✓ Focus'); $('v-focus').textContent = '25:00';
+      win.dataset.stage = 'move'; set('s-move', 'active', 0); $('reps').textContent = '0';
+    }, steps * 45 + 250);
+    var start = steps * 45 + 500;
+    for (var r = 1; r <= 10; r++) (function (r) {
+      later(function () {
+        $('reps').textContent = String(r);
+        $('say').textContent = says[r % 3];
+        set('s-move', 'active', r * 10);
+      }, start + r * 190);
+    })(r);
+    later(function () { finish(true); }, start + 10 * 190 + 300);
+  }
+
+  function finish(animate) {
+    set('s-focus', 'done', 100); label('s-focus', '✓ Focus'); $('v-focus').textContent = '25:00';
+    set('s-move', 'done', 100); label('s-move', '✓ Move'); $('v-move').textContent = '10 push-ups';
+    set('s-play', 'ready', 0); label('s-play', '✓ Play'); $('v-play').textContent = 'Unlocked';
+    $('timer').textContent = '00:00'; $('reps').textContent = '10';
+    win.dataset.stage = 'ready';
+    if (animate) { void win.offsetWidth; win.classList.add('lockin'); }
+  }
+
+  btn.addEventListener('click', play);
+  // Plays once when the window first comes into view. Without JavaScript, or with reduced
+  // motion, the finished ready state is shown.
+  if ('IntersectionObserver' in window && !reduce.matches) {
+    var io = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) { io.disconnect(); play(); }
+    }, { threshold: 0.5 });
+    io.observe(win);
+  }
+})();
+</script>
+</body>
+</html>

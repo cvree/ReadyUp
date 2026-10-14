@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { launch, toLobby } from './app'
@@ -15,17 +16,22 @@ test('a crash mid-focus resumes paused, counting only time up to the last save',
   await first.win.waitForTimeout(6500) // at least one periodic save
   const proc = first.app.process()
   const exited = new Promise((resolve) => proc.once('exit', resolve))
-  proc.kill('SIGKILL')
+  // A crash takes the helper processes down with the app. On Windows, killing only the main process
+  // leaves them running and holding the single-instance lock, so end the whole tree there.
+  if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(proc.pid), '/T', '/F'], { stdio: 'ignore' })
+  else proc.kill('SIGKILL')
   await exited
 
-  // On Windows the killed app's helper processes take a moment to exit and release the profile;
-  // until then a new instance yields to the single-instance lock. Retry briefly.
   let second: Awaited<ReturnType<typeof launch>> | null = null
+  let lastError: unknown = null
   for (let attempt = 0; attempt < 5 && !second; attempt++) {
-    await new Promise((r) => setTimeout(r, 1500))
-    second = await launch({ userData: first.userData }).catch(() => null)
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500))
+    second = await launch({ userData: first.userData }).catch((e: unknown) => {
+      lastError = e
+      return null
+    })
   }
-  if (!second) throw new Error('Ready Up did not restart after the crash')
+  if (!second) throw new Error(`Ready Up did not restart after the crash: ${String(lastError)}`)
   try {
     await expect(second.win.getByRole('heading', { name: 'Pick up where you left off.' })).toBeVisible()
     await expect(second.win.getByText(/closed unexpectedly, so only time up to its last save was counted/)).toBeVisible()

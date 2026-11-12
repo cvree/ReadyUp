@@ -383,6 +383,12 @@ export class Engine {
     if (s.status === 'live' && s.deviceId) await window.readyup.updateSettings({ camera: { deviceId: s.deviceId, label: s.label ?? device.label } })
   }
 
+  /** Switches to the next camera in the list. Does nothing with fewer than two cameras. */
+  async cycleCamera(): Promise<void> {
+    const next = this.camera?.nextDevice()
+    if (next) await this.selectCamera(next.deviceId)
+  }
+
   async retryCamera(): Promise<void> {
     if (!this.camera) return
     await this.startPreferredCamera()

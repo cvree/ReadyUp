@@ -1,0 +1,36 @@
+# Push a tag like v0.3.0 to publish the unsigned Windows installers as a GitHub Release, so
+# people can download and run Ready Up without building it.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Build and publish Windows installers
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: End-to-end tests on Windows
+        run: npx playwright test --trace off
+      - name: Build unsigned installers (x64 and arm64)
+        run: |
+          npx electron-builder --win nsis --x64 --publish never
+          npx electron-builder --win nsis --arm64 --publish never
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.exe --title "Ready Up $GITHUB_REF_NAME" --generate-notes --prerelease

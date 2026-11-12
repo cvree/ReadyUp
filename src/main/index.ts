@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, Notification, app, dialog, ipcMain, powerMonitor, session, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { BrowserWindow, Menu, Notification, app, dialog, ipcMain, powerMonitor, screen, session, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { IPC } from '../shared/channels'
@@ -14,6 +14,7 @@ import { handleAppProtocol, registerAppScheme } from './protocol'
 import { APP_ORIGIN, DEV_CSP, isLocalUrl, isTrustedOrigin } from './security'
 import { ActiveSessionStore, HistoryStore, SettingsStore, writeFileAtomic } from './storage'
 import { getSystemInfo } from './system'
+import { MIN_SIZE, placeWindow, readWindowState, type WindowState } from './window-state'
 
 const processStart = Date.now() - process.uptime() * 1000
 const E2E = process.env.READYUP_E2E === '1'
@@ -250,11 +251,16 @@ function registerIpc(): void {
 }
 
 function createWindow(): void {
+  // Open where the window was last time, as long as that spot still exists on a connected display.
+  const stateFile = join(app.getPath('userData'), 'window-state.json')
+  const place = placeWindow(readWindowState(stateFile), screen.getAllDisplays().map((d) => d.workArea), screen.getPrimaryDisplay().workArea)
   const win = new BrowserWindow({
-    width: 1360,
-    height: 880,
-    minWidth: 1024,
-    minHeight: 700,
+    x: place.x,
+    y: place.y,
+    width: place.width,
+    height: place.height,
+    minWidth: Math.min(MIN_SIZE.width, place.width),
+    minHeight: Math.min(MIN_SIZE.height, place.height),
     show: false,
     backgroundColor: '#0C0F15',
     title: 'Ready Up',
@@ -269,6 +275,22 @@ function createWindow(): void {
       allowRunningInsecureContent: false,
       spellcheck: false,
       backgroundThrottling: false
+    }
+  })
+  if (place.maximized) win.maximize()
+  win.on('close', () => {
+    try {
+      const state: WindowState = { ...win.getNormalBounds(), maximized: win.isMaximized() }
+      writeFileAtomic(stateFile, JSON.stringify(state))
+    } catch {
+      /* the window just opens at the default size next time */
+    }
+  })
+  // F11 switches full screen, as in most Windows apps. (The packaged app has no menu to do it.)
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11' && !input.control && !input.alt && !input.meta) {
+      event.preventDefault()
+      win.setFullScreen(!win.isFullScreen())
     }
   })
   mainWindow = win

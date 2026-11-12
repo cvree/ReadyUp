@@ -8,7 +8,7 @@ body {
 }
 button, select, input { font: inherit; color: inherit; }
 :focus-visible { outline: none; box-shadow: var(--focus); border-radius: 6px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .mono { font-family: var(--mono); font-size: 12px; }
 .fine { color: var(--mist); font-size: 12.5px; margin: 0; overflow-wrap: anywhere; }
 .fine.ok, em.ok { color: var(--ok); }

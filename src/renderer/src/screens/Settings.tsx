@@ -60,7 +60,7 @@ export function Settings(): React.JSX.Element {
             ))}
           </fieldset>
           <div className="row tight">
-            <label className="check"><input type="checkbox" checked={settings.sound} onChange={(e) => void C.updateSettings({ sound: e.target.checked })} /> Play a sound when you're ready</label>
+            <label className="check"><input type="checkbox" checked={settings.sound} onChange={(e) => void C.updateSettings({ sound: e.target.checked })} /> Play sounds: a tick for each counted rep and a chord when you're ready</label>
             <button className="btn small ghost" onClick={() => playReadyChord()}>Preview sound</button>
           </div>
         </div>

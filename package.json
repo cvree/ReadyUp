@@ -8,10 +8,11 @@
   "license": "UNLICENSED",
   "main": "./out/main/index.js",
   "engines": {
-    "node": ">=22.12 <23"
+    "node": ">=22.12"
   },
   "scripts": {
     "assets": "node scripts/prepare-assets.mjs",
+    "start": "node scripts/start.mjs",
     "predev": "npm run assets",
     "dev": "electron-vite dev",
     "prebuild": "npm run assets",
@@ -22,7 +23,7 @@
     "test": "npm run check:repo && vitest run",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:linux": "npm run build && xvfb-run -a -s \"-screen 0 1600x1000x24\" playwright test",
-    "dist:win": "npm run build && electron-builder --win nsis --x64 && electron-builder --win nsis --arm64"
+    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never && electron-builder --win nsis --arm64 --publish never"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { EXERCISE_LIST, exerciseById } from '@readyup/exercise'
 import { moveTotal } from '@readyup/session'
+import { cameraDisplayName } from '../camera/CameraService'
 import { engine, type FrameView } from '../engine/engine'
 import { useApp } from '../engine/store'
 import * as C from '../state/controller'
+import { playRepTick } from '../state/sound'
 import { useStore } from '../state/store'
 import { containRect, drawPose } from '../ui/draw'
 import { Beta, Kbd, ReadyCheck, Sheet, Shell, useKeys } from '../ui/kit'
@@ -11,15 +13,43 @@ import { slotsFor } from './common'
 
 // ---------------------------------------------------------------- shared camera view
 
-/** Live camera with the skeleton overlay. The camera runs only while this is on screen. */
-export function CameraView({ ghost, onOverride }: { ghost?: string; onOverride?: () => void }): React.JSX.Element {
+/** What the Move screen shows on top of the picture, big enough to read from across the room. */
+export interface CameraHud {
+  count: number
+  target: number
+  unit: string
+  hint: string
+}
+
+const FLASH_MS = 650
+const HANDS_FREE_SECONDS = 3
+
+/**
+ * Live camera with the skeleton overlay, a status line and quick controls (switch camera, mirror,
+ * fill the window). The camera runs only while this is on screen.
+ */
+export function CameraView({ ghost, onOverride, hud, frameOk, overlay }: {
+  ghost?: string
+  onOverride?: () => void
+  hud?: CameraHud
+  /** Camera setup: corner marks that turn green when every check passes. */
+  frameOk?: boolean
+  overlay?: ReactNode
+}): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const mirror = useApp((s) => s.mirror)
   const source = useApp((s) => s.source)
+  const deviceCount = useApp((s) => s.devices.length)
+  const lastEvent = useApp((s) => s.repLog[0])
+  const sound = useStore((s) => s.settings.sound)
+  const [expanded, setExpanded] = useState(false)
+  const [flash, setFlash] = useState<'counted' | 'missed' | null>(null)
   const mirrorRef = useRef(mirror)
   mirrorRef.current = mirror
+  const live = source === 'live'
+  const canSwitch = live && deviceCount > 1
 
   useEffect(() => {
     const video = videoRef.current
@@ -61,13 +91,108 @@ export function CameraView({ ghost, onOverride }: { ghost?: string; onOverride?:
     }
   }, [])
 
+  // A pulse around the picture for every rep: green when it counted, amber when it didn't.
+  const seenEvent = useRef(lastEvent)
+  useEffect(() => {
+    if (!lastEvent || lastEvent === seenEvent.current) return
+    seenEvent.current = lastEvent
+    const counted = lastEvent.outcome === 'counted'
+    setFlash(counted ? 'counted' : 'missed')
+    if (counted && hud && sound) playRepTick(engine.tally.total >= hud.target)
+    const id = window.setTimeout(() => setFlash(null), FLASH_MS)
+    return () => window.clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to new rep events only
+  }, [lastEvent])
+
+  // While the camera fills the window, the page behind it must not scroll or show a scrollbar.
+  useEffect(() => {
+    if (!expanded) return
+    const root = document.documentElement
+    const before = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => {
+      root.style.overflow = before
+    }
+  }, [expanded])
+
+  const toggleExpanded = (): void => setExpanded((v) => !v)
+  const toggleMirror = (): void => void engine.setMirror(!useApp.getState().mirror)
+  const switchCamera = (): void => void engine.cycleCamera()
+  useKeys({
+    f: toggleExpanded, F: toggleExpanded,
+    ...(live ? { m: toggleMirror, M: toggleMirror } : {}),
+    ...(canSwitch ? { c: switchCamera, C: switchCamera } : {}),
+    ...(expanded ? { Escape: () => setExpanded(false) } : {})
+  })
+
   return (
-    <div className="camview" ref={boxRef}>
-      <video ref={videoRef} className={`camview-video ${mirror ? 'mirrored' : ''}`} hidden={source !== 'live'} playsInline muted aria-label="Camera preview" />
+    <div className={`camview ${expanded ? 'expanded' : ''}`} ref={boxRef} data-flash={flash ?? undefined} data-expanded={expanded}>
+      <video ref={videoRef} className={`camview-video ${mirror ? 'mirrored' : ''}`} hidden={!live} playsInline muted aria-label="Camera preview" />
       {ghost && <Ghost kind={ghost} />}
       <canvas ref={canvasRef} className="camview-overlay" aria-hidden="true" />
-      {source === 'sim' && <span className="tag sim-tag">Simulated input</span>}
-      {source === 'live' && <CameraStateCard onOverride={onOverride} />}
+      {frameOk !== undefined && <div className="cam-frame" data-ok={frameOk} aria-hidden="true"><i /><i /><i /><i /></div>}
+      <div className="cam-top">
+        {live ? <CameraStatus /> : <span className="tag sim-tag">Simulated input</span>}
+        <div className="cam-tools" role="group" aria-label="Camera controls">
+          {canSwitch && (
+            <button className="camtool" onClick={switchCamera} aria-label="Switch camera" title="Switch camera (C)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v10H4z" /><path d="M9.5 12.5a2.5 2.5 0 0 1 4.6-1.3M14.5 13.5a2.5 2.5 0 0 1-4.6 1.3" /><path d="M14.3 9.6v1.8h-1.8M9.7 16.4v-1.8h1.8" /></svg>
+            </button>
+          )}
+          {live && (
+            <button className="camtool" onClick={toggleMirror} aria-label="Mirror preview" aria-pressed={mirror} title="Mirror preview (M)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18" strokeDasharray="2 3" /><path d="M9 7 4 17h5zM15 7l5 10h-5z" /></svg>
+            </button>
+          )}
+          <button className="camtool" onClick={toggleExpanded} aria-label="Fill the window with the camera" aria-pressed={expanded} title={expanded ? 'Back to normal size (F or Esc)' : 'Fill the window (F)'}>
+            {expanded
+              ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+              : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>}
+          </button>
+        </div>
+      </div>
+      {hud && <Hud hud={hud} showHint={expanded} />}
+      {overlay}
+      {live && <CameraStateCard onOverride={onOverride} />}
+    </div>
+  )
+}
+
+/** One line that says whether the camera and the tracker are doing their job right now. */
+function CameraStatus(): React.JSX.Element | null {
+  const camera = useApp((s) => s.camera)
+  const model = useApp((s) => s.model.status)
+  const tracking = useApp((s) => s.snapshot?.tracking ?? null)
+  const fps = useApp((s) => s.perf.fps)
+  if (camera.status !== 'live') return <span />
+  const state = model !== 'ready' ? 'wait' : tracking === 'ok' ? 'ok' : tracking === 'holding' ? 'wait' : 'none'
+  const word = model !== 'ready' ? 'Warming up' : tracking === 'ok' ? 'Tracking you' : tracking === 'holding' ? 'Finding you' : 'Can\'t see you yet'
+  const slow = fps !== null && fps < 15
+  return (
+    <div className="cam-status" data-testid="cam-status" data-tracking={state}>
+      <span className="cam-dot" aria-hidden="true" />
+      <strong>{word}</strong>
+      <span className="cam-meta">{cameraDisplayName(camera.label)}{camera.width && camera.height ? ` · ${camera.width}×${camera.height}` : ''}</span>
+      {fps !== null && model === 'ready' && <span className={`cam-meta ${slow ? 'slow' : ''}`}>{Math.round(fps)} fps{slow ? ' · slow' : ''}</span>}
+    </div>
+  )
+}
+
+/** The count on top of the picture. Decorative for assistive tech: the side panel says the same. */
+function Hud({ hud, showHint }: { hud: CameraHud; showHint: boolean }): React.JSX.Element {
+  const r = 44
+  const len = 2 * Math.PI * r
+  const done = Math.max(0, Math.min(1, hud.target ? hud.count / hud.target : 0))
+  return (
+    <div className="cam-hud" aria-hidden="true">
+      <div className="hud-count">
+        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r={r} className="hud-track" /><circle cx="50" cy="50" r={r} className="hud-arc" strokeDasharray={len} strokeDashoffset={len * (1 - done)} transform="rotate(-90 50 50)" /></svg>
+        <span className="hud-n" key={hud.count}>{hud.count}</span>
+      </div>
+      <div className="hud-text">
+        <span className="hud-of">of {hud.target} {hud.unit}</span>
+        {showHint && <span className="hud-hint">{hud.hint}</span>}
+      </div>
     </div>
   )
 }
@@ -157,6 +282,10 @@ export function CameraSetup(): React.JSX.Element {
   const camera = useApp((s) => s.camera)
   const mirror = useApp((s) => s.mirror)
   const [phoneHelp, setPhoneHelp] = useState(false)
+  // Hands-free: during a ready check, holding a good position starts the set without a keypress.
+  // Touching anything on this screen means you're adjusting things, so it waits for you instead.
+  const [handsFree, setHandsFree] = useState(returnTo === 'move')
+  const [secs, setSecs] = useState<number | null>(null)
   const exerciseId = active?.phase === 'move' ? active.move.exerciseId : settings.routine.exerciseId
   const def = exerciseById(exerciseId)
   const allPass = !!checks && checks.every((c) => c.pass)
@@ -166,12 +295,28 @@ export function CameraSetup(): React.JSX.Element {
     if (useApp.getState().exerciseId !== exerciseId) engine.setExercise(exerciseId)
   }, [exerciseId])
   useKeys({ Enter: () => (allPass ? void C.setupPassed() : undefined), Escape: leave })
+  useEffect(() => {
+    if (!handsFree || !allPass) {
+      setSecs(null)
+      return
+    }
+    setSecs(HANDS_FREE_SECONDS)
+    const id = window.setInterval(() => setSecs((v) => (v === null ? null : Math.max(0, v - 1))), 1000)
+    return () => window.clearInterval(id)
+  }, [handsFree, allPass])
+  useEffect(() => {
+    if (secs === 0) void C.setupPassed()
+  }, [secs])
 
   return (
     <Shell title="Camera setup">
-      <section className="setup">
+      <section className="setup" onPointerDown={() => setHandsFree(false)}>
         <div className="setup-cam">
-          <CameraView ghost={exerciseId} />
+          <CameraView
+            ghost={exerciseId}
+            frameOk={allPass}
+            overlay={secs !== null && secs > 0 ? <div className="cam-countdown" role="status"><span>{secs}</span><small>Hold it there. Starting by itself.</small></div> : null}
+          />
           <p className="fine">Line up roughly with the dashed outline. {def.view === 'side' ? 'Side-on, about 2–3 m away, camera near hip height.' : 'Side-on or at an angle, about 2–3 m away.'}</p>
         </div>
         <div className="setup-side">
@@ -197,6 +342,7 @@ export function CameraSetup(): React.JSX.Element {
             <label className="check"><input type="checkbox" checked={mirror} onChange={(e) => void engine.setMirror(e.target.checked)} /> Mirror preview</label>
             <button className="btn link" onClick={() => setPhoneHelp(true)}>Use your phone as a camera</button>
           </div>
+          {handsFree && <p className="fine" data-testid="hands-free">Hands-free: once every check is green, hold the position for {HANDS_FREE_SECONDS} seconds and your set starts by itself.</p>}
           <div className="row stick-bottom">
             <button className="btn primary big" disabled={!allPass} onClick={() => void C.setupPassed()}>I'm set <Kbd>Enter</Kbd></button>
             <button className="btn ghost" onClick={leave}>{returnTo === 'move' ? 'Continue anyway' : 'Back'}</button>
@@ -243,11 +389,12 @@ export function Move(): React.JSX.Element {
   const primary = snap?.signals.primary ?? null
   const depth = primary === null ? 0 : Math.max(0, Math.min(1, (th.top - primary) / (th.top - th.bottom)))
   const recent = lastEvent && Date.now() - lastEvent.t < 4000 && lastEvent.outcome !== 'counted' ? lastEvent.message : null
+  const say = camera.status === 'live' || useApp.getState().source === 'sim' ? (recent ?? hint) : 'Waiting for the camera.'
 
   return (
     <Shell title={`${total} of ${active.move.target} ${def.copy.unit}`} bar={<ReadyCheck {...slotsFor(settings, active, C.now())} size="slim" />}>
       <section className="move">
-        <div className="move-cam"><CameraView onOverride={() => setOverrideOpen(true)} /></div>
+        <div className="move-cam"><CameraView onOverride={() => setOverrideOpen(true)} hud={{ count: total, target: active.move.target, unit: def.copy.unit, hint: say }} /></div>
         <aside className="move-side" aria-label="Count">
           <div className="move-ex">
             <label className="field inline">
@@ -269,7 +416,7 @@ export function Move(): React.JSX.Element {
             <div className="gauge-bar"><i style={{ width: `${depth * 100}%` }} /><b /></div>
             <div className="gauge-lbl"><span>up · {th.top}°</span><span>{primary === null ? '—' : `${Math.round(primary)}°`}</span><span>{th.bottom}° · depth</span></div>
           </div>
-          <p className="say" data-testid="move-hint">{camera.status === 'live' || useApp.getState().source === 'sim' ? (recent ?? hint) : 'Waiting for the camera.'}</p>
+          <p className="say" data-testid="move-hint">{say}</p>
           <div className="row">
             <button className="btn" onClick={() => engine.correct(-1)} aria-label="Correct the count: minus one">−1 <Kbd>-</Kbd></button>
             <button className="btn" onClick={() => engine.correct(1)} aria-label="Correct the count: plus one">+1 <Kbd>+</Kbd></button>
@@ -278,6 +425,7 @@ export function Move(): React.JSX.Element {
             <button className="btn ghost" onClick={() => setOverrideOpen(true)}>Can't use the camera? <Kbd>O</Kbd></button>
             <button className="btn link" onClick={() => C.go('setup', 'move')}>Camera setup</button>
           </div>
+          <p className="fine">On the picture: <Kbd>F</Kbd> fills the window, <Kbd>M</Kbd> mirrors, <Kbd>C</Kbd> switches camera.</p>
         </aside>
       </section>
       <OverrideSheet open={overrideOpen} onClose={() => setOverrideOpen(false)} target={active.move.target} unit={def.copy.unit} />
